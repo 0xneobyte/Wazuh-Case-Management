@@ -54,11 +54,12 @@ export default function LoginPage() {
     try {
       await login(email, password);
       router.push('/');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
+      const message = error instanceof Error ? error.message : 'Login failed';
       setErrors({ 
-        email: error.message.includes('email') ? error.message : undefined,
-        password: error.message.includes('password') ? error.message : undefined
+        email: message.includes('email') ? message : undefined,
+        password: message.includes('password') ? message : undefined
       });
     } finally {
       setIsSubmitting(false);
