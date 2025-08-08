@@ -101,7 +101,7 @@ export default function Dashboard() {
             Welcome back, {user?.firstName}!
           </h1>
           <p className="mt-1 text-sm text-gray-600">
-            Here's what's happening with your security cases today.
+            Here&apos;s what&apos;s happening with your security cases today.
           </p>
         </div>
 
