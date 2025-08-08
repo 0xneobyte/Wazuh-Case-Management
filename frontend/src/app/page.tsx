@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../providers/AuthProvider';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import { dashboardAPI, casesAPI, handleAPIError } from '@/services/api';
 import { 
   ExclamationTriangleIcon, 
   ClockIcon, 
@@ -11,17 +12,73 @@ import {
   UsersIcon 
 } from '@heroicons/react/24/outline';
 
+interface DashboardStats {
+  totalCases: number;
+  openCases: number;
+  inProgressCases: number;
+  resolvedCases: number;
+  closedCases: number;
+  overdueCases: number;
+}
+
+interface RecentCase {
+  _id: string;
+  caseId: string;
+  title: string;
+  priority: string;
+  status: string;
+  assignedTo?: {
+    firstName: string;
+    lastName: string;
+  };
+  createdAt: string;
+}
+
 export default function Dashboard() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const [dashboardData, setDashboardData] = useState<DashboardStats | null>(null);
+  const [recentCases, setRecentCases] = useState<RecentCase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/auth/login');
+    } else if (user) {
+      loadDashboardData();
     }
   }, [user, isLoading, router]);
 
-  if (isLoading) {
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Load dashboard overview and recent cases in parallel
+      const [overviewResponse, casesResponse] = await Promise.all([
+        dashboardAPI.getOverview(),
+        casesAPI.getCases({ page: 1, limit: 5, sort: '-createdAt' })
+      ]);
+
+      if (overviewResponse.success) {
+        setDashboardData(overviewResponse.data.overview);
+      }
+
+      if (casesResponse.success) {
+        setRecentCases(casesResponse.data);
+      }
+
+    } catch (error) {
+      console.error('Dashboard data loading error:', error);
+      const apiError = handleAPIError(error);
+      setError(apiError.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (isLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
@@ -33,64 +90,41 @@ export default function Dashboard() {
     return null; // Will redirect to login
   }
 
-  // Mock data for demo
+  // Create stats array from real data
   const stats = [
     {
       title: 'Open Cases',
-      value: 12,
+      value: dashboardData?.openCases || 0,
       icon: ExclamationTriangleIcon,
       color: 'red',
-      change: +2
+      change: 0 // You can calculate change from previous period if needed
     },
     {
       title: 'In Progress',
-      value: 8,
+      value: dashboardData?.inProgressCases || 0,
       icon: ClockIcon,
-      color: 'yellow',
-      change: -1
+      color: 'yellow', 
+      change: 0
     },
     {
-      title: 'Resolved Today',
-      value: 5,
+      title: 'Resolved',
+      value: dashboardData?.resolvedCases || 0,
       icon: CheckCircleIcon,
       color: 'green',
-      change: +3
+      change: 0
     },
     {
-      title: 'Active Analysts',
-      value: 4,
-      icon: UsersIcon,
-      color: 'blue',
+      title: 'Overdue Cases',
+      value: dashboardData?.overdueCases || 0,
+      icon: ExclamationTriangleIcon,
+      color: 'orange',
       change: 0
     }
   ];
 
-  const recentCases = [
-    {
-      id: 'CASE-2024-01-08-00001',
-      title: 'Suspicious Login Activity',
-      priority: 'P1',
-      status: 'Open',
-      assignedTo: 'John Doe',
-      createdAt: '2024-01-08T10:30:00Z'
-    },
-    {
-      id: 'CASE-2024-01-08-00002', 
-      title: 'Malware Detection',
-      priority: 'P2',
-      status: 'In Progress',
-      assignedTo: 'Jane Smith',
-      createdAt: '2024-01-08T09:15:00Z'
-    },
-    {
-      id: 'CASE-2024-01-08-00003',
-      title: 'Policy Violation',
-      priority: 'P3',
-      status: 'Resolved',
-      assignedTo: 'Mike Johnson',
-      createdAt: '2024-01-08T08:45:00Z'
-    }
-  ];
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString();
+  };
 
   return (
     <DashboardLayout>
@@ -103,6 +137,17 @@ export default function Dashboard() {
           <p className="mt-1 text-sm text-gray-600">
             Here&apos;s what&apos;s happening with your security cases today.
           </p>
+          {error && (
+            <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+              <p>Error loading dashboard data: {error}</p>
+              <button 
+                onClick={loadDashboardData}
+                className="mt-2 text-sm underline hover:no-underline"
+              >
+                Retry
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Stats Grid */}
@@ -151,28 +196,41 @@ export default function Dashboard() {
             <div className="card-body p-0">
               <div className="flow-root">
                 <ul className="divide-y divide-gray-200">
-                  {recentCases.map((case_) => (
-                    <li key={case_.id} className="p-4">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {case_.title}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {case_.id} • Assigned to {case_.assignedTo}
-                          </p>
+                  {recentCases.length > 0 ? (
+                    recentCases.map((case_) => (
+                      <li key={case_._id} className="p-4 hover:bg-gray-50 cursor-pointer">
+                        <div className="flex items-center space-x-4">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {case_.title}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {case_.caseId} • {case_.assignedTo ? 
+                                `Assigned to ${case_.assignedTo.firstName} ${case_.assignedTo.lastName}` : 
+                                'Unassigned'
+                              }
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              Created {formatDate(case_.createdAt)}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end space-y-1">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium priority-${case_.priority.toLowerCase()}`}>
+                              {case_.priority}
+                            </span>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium status-${case_.status.toLowerCase().replace(' ', '-')}`}>
+                              {case_.status}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex flex-col items-end space-y-1">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium priority-${case_.priority.toLowerCase()}`}>
-                            {case_.priority}
-                          </span>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium status-${case_.status.toLowerCase().replace(' ', '-')}`}>
-                            {case_.status}
-                          </span>
-                        </div>
-                      </div>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="p-4 text-center text-gray-500">
+                      <p>No recent cases found</p>
+                      <p className="text-xs mt-1">Cases will appear here once created</p>
                     </li>
-                  ))}
+                  )}
                 </ul>
               </div>
             </div>
@@ -185,26 +243,49 @@ export default function Dashboard() {
             </div>
             <div className="card-body">
               <div className="grid grid-cols-1 gap-4">
-                <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left">
-                  <h4 className="font-medium text-gray-900">Create Case</h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Manually create a new security case
-                  </p>
-                </button>
+                {user?.role !== 'viewer' && (
+                  <button 
+                    onClick={() => router.push('/cases/create')}
+                    className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left transition-colors"
+                  >
+                    <h4 className="font-medium text-gray-900">Create Case</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Manually create a new security case
+                    </p>
+                  </button>
+                )}
                 
-                <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left">
+                <button 
+                  onClick={() => router.push('/ai-assistant')}
+                  className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left transition-colors"
+                >
                   <h4 className="font-medium text-gray-900">AI Assistant</h4>
                   <p className="text-sm text-gray-600 mt-1">
                     Get remediation guidance and recommendations
                   </p>
                 </button>
                 
-                <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left">
+                <button 
+                  onClick={() => router.push('/analytics')}
+                  className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left transition-colors"
+                >
                   <h4 className="font-medium text-gray-900">View Analytics</h4>
                   <p className="text-sm text-gray-600 mt-1">
                     Analyze performance and trends
                   </p>
                 </button>
+                
+                {(user?.role === 'admin' || user?.role === 'senior_analyst') && (
+                  <button 
+                    onClick={() => router.push('/wazuh')}
+                    className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left transition-colors"
+                  >
+                    <h4 className="font-medium text-gray-900">Wazuh Integration</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Manage SIEM alerts and sync
+                    </p>
+                  </button>
+                )}
               </div>
             </div>
           </div>
