@@ -76,7 +76,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setUser(null);
           }
         }
-      } catch (error) {
+      } catch {
         // Token is invalid, clear storage
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -125,9 +125,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         },
       });
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
-      throw new Error(error.message || 'Login failed. Please try again.');
+      const message = error instanceof Error ? error.message : 'Login failed. Please try again.';
+      throw new Error(message);
     } finally {
       setIsLoading(false);
     }
