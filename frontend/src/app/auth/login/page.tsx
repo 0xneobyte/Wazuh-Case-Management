@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
 
   const { user, login, isLoading } = useAuth();
   const router = useRouter();
@@ -57,10 +57,17 @@ export default function LoginPage() {
     } catch (error: unknown) {
       console.error('Login error:', error);
       const message = error instanceof Error ? error.message : 'Login failed';
-      setErrors({ 
-        email: message.includes('email') ? message : undefined,
-        password: message.includes('password') ? message : undefined
-      });
+      
+      // Set specific error based on message content
+      if (message.includes('email') || message.includes('user not found')) {
+        setErrors({ email: message });
+      } else if (message.includes('password') || message.includes('invalid credentials')) {
+        setErrors({ password: message });
+      } else if (message.includes('deactivated') || message.includes('locked')) {
+        setErrors({ general: message });
+      } else {
+        setErrors({ general: message });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -90,6 +97,14 @@ export default function LoginPage() {
         </div>
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {/* General error message */}
+          {errors.general && (
+            <div className="rounded-md bg-red-50 p-4">
+              <div className="text-sm text-red-700">
+                {errors.general}
+              </div>
+            </div>
+          )}
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="email-address" className="sr-only">
