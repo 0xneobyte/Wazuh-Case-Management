@@ -23,7 +23,7 @@ import {
 interface NavigationItem {
   name: string;
   href: string;
-  icon: any;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   current?: boolean;
   badge?: number;
 }
