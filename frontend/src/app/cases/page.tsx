@@ -88,7 +88,7 @@ export default function CasesPage() {
       setLoading(true);
       setError(null);
 
-      const params: any = {
+      const params: Record<string, unknown> = {
         page: currentPage,
         limit: 20,
         sort: '-createdAt',

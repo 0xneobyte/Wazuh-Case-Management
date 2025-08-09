@@ -185,6 +185,14 @@ export const dashboardAPI = {
     const response = await api.get('/dashboard/performance', { params });
     return response.data;
   },
+  getAnalystPerformance: async (params = {}) => {
+    const response = await api.get('/dashboard/analyst-performance', { params });
+    return response.data;
+  },
+  getCaseMetrics: async (params = {}) => {
+    const response = await api.get('/dashboard/case-metrics', { params });
+    return response.data;
+  },
 
   getTrends: async (params = {}) => {
     const response = await api.get('/dashboard/trends', { params });
@@ -247,8 +255,16 @@ export const usersAPI = {
 
 // Wazuh API
 export const wazuhAPI = {
+  getStatus: async () => {
+    const response = await api.get('/wazuh/status');
+    return response.data;
+  },
   testConnection: async () => {
     const response = await api.get('/wazuh/test');
+    return response.data;
+  },
+  syncAlerts: async () => {
+    const response = await api.post('/wazuh/sync');
     return response.data;
   },
 
@@ -299,12 +315,27 @@ export const wazuhAPI = {
 
 // AI API
 export const aiAPI = {
+  generateResponse: async (data) => {
+    const response = await api.post('/ai/chat', data);
+    return response.data;
+  },
+
   getRemediationSuggestions: async (caseId, context = '') => {
     const response = await api.post(`/ai/case/${caseId}/remediation`, { context });
     return response.data;
   },
 
+  getRemediationSteps: async (caseId) => {
+    const response = await api.post(`/ai/case/${caseId}/remediation`);
+    return response.data;
+  },
+
   getMitreAnalysis: async (caseId) => {
+    const response = await api.post(`/ai/case/${caseId}/mitre-analysis`);
+    return response.data;
+  },
+
+  getMITREAnalysis: async (caseId) => {
     const response = await api.post(`/ai/case/${caseId}/mitre-analysis`);
     return response.data;
   },

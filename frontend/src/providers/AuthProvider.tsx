@@ -76,7 +76,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               // Update stored user data
               localStorage.setItem('user', JSON.stringify(response.data));
             }
-          } catch (error) {
+          } catch {
             // Token is invalid, clear storage
             localStorage.removeItem('token');
             localStorage.removeItem('user');

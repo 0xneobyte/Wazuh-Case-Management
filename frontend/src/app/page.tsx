@@ -8,8 +8,7 @@ import { dashboardAPI, casesAPI, handleAPIError } from '@/services/api';
 import { 
   ExclamationTriangleIcon, 
   ClockIcon, 
-  CheckCircleIcon,
-  UsersIcon 
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
 
 interface DashboardStats {
