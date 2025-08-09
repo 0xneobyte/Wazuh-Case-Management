@@ -56,7 +56,11 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       removeToken();
-      if (typeof window !== "undefined") {
+      // Only redirect if not already on login page to prevent refresh loops
+      if (
+        typeof window !== "undefined" &&
+        !window.location.pathname.includes("/auth/login")
+      ) {
         window.location.href = "/auth/login";
       }
     }
@@ -170,6 +174,16 @@ export const casesAPI = {
 
   getCaseStats: async () => {
     const response = await api.get("/cases/stats/overview");
+    return response.data;
+  },
+
+  getGeoThreats: async (filters = {}) => {
+    const response = await api.get("/cases/geo/threats", { params: filters });
+    return response.data;
+  },
+
+  getGeoStats: async (filters = {}) => {
+    const response = await api.get("/cases/geo/stats", { params: filters });
     return response.data;
   },
 };

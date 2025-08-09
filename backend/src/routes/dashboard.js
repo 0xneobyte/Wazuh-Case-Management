@@ -711,6 +711,307 @@ router.get(
   }
 );
 
+// @desc    Get case metrics for analytics
+// @route   GET /api/dashboard/case-metrics
+// @access  Private
+router.get(
+  "/case-metrics",
+  [
+    query("period")
+      .optional()
+      .isIn(["7d", "30d", "90d", "1y"])
+      .withMessage("Invalid period"),
+  ],
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: "Validation errors",
+            details: errors.array(),
+          },
+        });
+      }
+
+      const period = req.query.period || "30d";
+      const periodDays = {
+        "7d": 7,
+        "30d": 30,
+        "90d": 90,
+        "1y": 365,
+      };
+
+      const startDate = new Date(
+        Date.now() - periodDays[period] * 24 * 60 * 60 * 1000
+      );
+
+      let matchQuery = { createdAt: { $gte: startDate } };
+      if (req.user.role === "analyst") {
+        matchQuery.assignedTo = req.user._id;
+      }
+
+      const [currentPeriodStats, previousPeriodStats] = await Promise.all([
+        // Current period stats
+        Case.aggregate([
+          { $match: matchQuery },
+          {
+            $group: {
+              _id: null,
+              totalCases: { $sum: 1 },
+              openCases: {
+                $sum: { $cond: [{ $eq: ["$status", "Open"] }, 1, 0] },
+              },
+              inProgressCases: {
+                $sum: { $cond: [{ $eq: ["$status", "In Progress"] }, 1, 0] },
+              },
+              resolvedCases: {
+                $sum: { $cond: [{ $eq: ["$status", "Resolved"] }, 1, 0] },
+              },
+              closedCases: {
+                $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] },
+              },
+              overdueCases: {
+                $sum: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $lt: ["$sla.dueDate", new Date()] },
+                        { $not: { $in: ["$status", ["Resolved", "Closed"]] } },
+                      ],
+                    },
+                    1,
+                    0,
+                  ],
+                },
+              },
+              avgResolutionTime: {
+                $avg: {
+                  $cond: [
+                    { $in: ["$status", ["Resolved", "Closed"]] },
+                    { $subtract: ["$resolution.resolvedAt", "$createdAt"] },
+                    null,
+                  ],
+                },
+              },
+              casesByPriority: {
+                $push: "$priority",
+              },
+            },
+          },
+        ]),
+
+        // Previous period stats for comparison
+        Case.aggregate([
+          {
+            $match: {
+              createdAt: {
+                $gte: new Date(
+                  startDate.getTime() - periodDays[period] * 24 * 60 * 60 * 1000
+                ),
+                $lt: startDate,
+              },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalCases: { $sum: 1 },
+            },
+          },
+        ]),
+      ]);
+
+      const currentStats = currentPeriodStats[0] || {
+        totalCases: 0,
+        openCases: 0,
+        inProgressCases: 0,
+        resolvedCases: 0,
+        closedCases: 0,
+        overdueCases: 0,
+        avgResolutionTime: 0,
+        casesByPriority: [],
+      };
+
+      const previousStats = previousPeriodStats[0] || { totalCases: 0 };
+
+      // Calculate priority distribution
+      const priorityCounts = currentStats.casesByPriority.reduce(
+        (acc, priority) => {
+          acc[priority] = (acc[priority] || 0) + 1;
+          return acc;
+        },
+        {}
+      );
+
+      const metrics = {
+        totalCases: currentStats.totalCases,
+        openCases: currentStats.openCases,
+        inProgressCases: currentStats.inProgressCases,
+        resolvedCases: currentStats.resolvedCases,
+        closedCases: currentStats.closedCases,
+        overdueCases: currentStats.overdueCases,
+        avgResolutionTime: currentStats.avgResolutionTime / (1000 * 60 * 60), // Convert to hours
+        casesByPriority: {
+          P1: priorityCounts.P1 || 0,
+          P2: priorityCounts.P2 || 0,
+          P3: priorityCounts.P3 || 0,
+        },
+        casesThisMonth: currentStats.totalCases,
+        casesLastMonth: previousStats.totalCases,
+      };
+
+      res.status(200).json({
+        success: true,
+        data: metrics,
+      });
+    } catch (error) {
+      logger.error("Case metrics error:", error);
+      next(error);
+    }
+  }
+);
+
+// @desc    Get analyst performance metrics
+// @route   GET /api/dashboard/analyst-performance
+// @access  Private (Admin, Senior Analyst)
+router.get(
+  "/analyst-performance",
+  authorize("admin", "senior_analyst"),
+  [
+    query("period")
+      .optional()
+      .isIn(["7d", "30d", "90d", "1y"])
+      .withMessage("Invalid period"),
+  ],
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: "Validation errors",
+            details: errors.array(),
+          },
+        });
+      }
+
+      const period = req.query.period || "30d";
+      const periodDays = {
+        "7d": 7,
+        "30d": 30,
+        "90d": 90,
+        "1y": 365,
+      };
+
+      const startDate = new Date(
+        Date.now() - periodDays[period] * 24 * 60 * 60 * 1000
+      );
+
+      const performanceData = await User.aggregate([
+        {
+          $match: {
+            role: { $in: ["analyst", "senior_analyst"] },
+            isActive: true,
+          },
+        },
+        {
+          $lookup: {
+            from: "cases",
+            let: { userId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$assignedTo", "$$userId"] },
+                  createdAt: { $gte: startDate },
+                },
+              },
+            ],
+            as: "assignedCases",
+          },
+        },
+        {
+          $lookup: {
+            from: "cases",
+            let: { userId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$resolution.resolvedBy", "$$userId"] },
+                  "resolution.resolvedAt": { $gte: startDate },
+                },
+              },
+            ],
+            as: "resolvedCases",
+          },
+        },
+        {
+          $project: {
+            firstName: 1,
+            lastName: 1,
+            email: 1,
+            performance: {
+              totalCasesAssigned: { $size: "$assignedCases" },
+              totalCasesResolved: { $size: "$resolvedCases" },
+              currentCaseLoad: {
+                $size: {
+                  $filter: {
+                    input: "$assignedCases",
+                    cond: { $in: ["$$this.status", ["Open", "In Progress"]] },
+                  },
+                },
+              },
+              overdueCases: {
+                $size: {
+                  $filter: {
+                    input: "$assignedCases",
+                    cond: {
+                      $and: [
+                        { $lt: ["$$this.sla.dueDate", new Date()] },
+                        {
+                          $not: {
+                            $in: ["$$this.status", ["Resolved", "Closed"]],
+                          },
+                        },
+                      ],
+                    },
+                  },
+                },
+              },
+              avgResolutionTime: {
+                $avg: {
+                  $map: {
+                    input: "$resolvedCases",
+                    as: "case",
+                    in: {
+                      $subtract: [
+                        "$$case.resolution.resolvedAt",
+                        "$$case.createdAt",
+                      ],
+                    },
+                  },
+                },
+              },
+              rating: { $ifNull: ["$performance.rating", 4.0] },
+            },
+          },
+        },
+        { $sort: { "performance.totalCasesResolved": -1 } },
+      ]);
+
+      res.status(200).json({
+        success: true,
+        data: performanceData,
+      });
+    } catch (error) {
+      logger.error("Analyst performance error:", error);
+      next(error);
+    }
+  }
+);
+
 // @desc    Get workload distribution
 // @route   GET /api/dashboard/workload
 // @access  Private (Admin, Senior Analyst)
