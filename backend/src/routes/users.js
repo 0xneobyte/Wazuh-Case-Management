@@ -294,6 +294,101 @@ router.put('/:id', [
   }
 });
 
+// @desc    Update user status (activate/deactivate)
+// @route   PUT /api/users/:id/status
+// @access  Private (Admin only)
+router.put('/:id/status', authorize('admin'), [
+  param('id').isMongoId().withMessage('Invalid user ID'),
+  body('isActive').isBoolean().withMessage('isActive must be boolean')
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        error: { 
+          message: 'Validation errors', 
+          details: errors.array() 
+        }
+      });
+    }
+
+    // Prevent self-deactivation
+    if (req.params.id === req.user.id && req.body.isActive === false) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Cannot deactivate your own account' }
+      });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'User not found' }
+      });
+    }
+
+    user.isActive = req.body.isActive;
+    await user.save();
+
+    // If deactivating, reassign open cases
+    if (!req.body.isActive) {
+      const openCases = await Case.find({ 
+        assignedTo: req.params.id, 
+        status: { $in: ['Open', 'In Progress'] } 
+      });
+
+      if (openCases.length > 0) {
+        // Find an active admin or senior analyst to reassign cases
+        const reassignTo = await User.findOne({ 
+          role: { $in: ['admin', 'senior_analyst'] }, 
+          isActive: true,
+          _id: { $ne: req.params.id }
+        });
+
+        if (reassignTo) {
+          await Case.updateMany(
+            { assignedTo: req.params.id, status: { $in: ['Open', 'In Progress'] } },
+            { 
+              assignedTo: reassignTo._id,
+              assignedBy: req.user._id,
+              assignedAt: new Date(),
+              $push: {
+                timeline: {
+                  action: 'Assigned',
+                  description: `Case reassigned due to user deactivation to ${reassignTo.firstName} ${reassignTo.lastName}`,
+                  userId: req.user._id,
+                  timestamp: new Date(),
+                  metadata: { 
+                    reason: 'user_deactivation',
+                    previousAssignee: req.params.id,
+                    newAssignee: reassignTo._id
+                  }
+                }
+              }
+            }
+          );
+        }
+      }
+
+      logger.info(`User ${req.body.isActive ? 'activated' : 'deactivated'}: ${user.email}`, {
+        userId: user._id,
+        changedBy: req.user._id,
+        reassignedCases: openCases.length
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: user,
+      message: `User ${req.body.isActive ? 'activated' : 'deactivated'} successfully`
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // @desc    Delete user (soft delete)
 // @route   DELETE /api/users/:id
 // @access  Private (Admin only)

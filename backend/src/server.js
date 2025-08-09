@@ -14,6 +14,7 @@ const wazuhRoutes = require("./routes/wazuh");
 const notificationRoutes = require("./routes/notifications");
 const aiRoutes = require("./routes/ai");
 const ipAnalysisRoutes = require("./routes/ipAnalysis");
+const demoSiemRoutes = require("./routes/demoSiem");
 
 const { connectDatabase } = require("./config/database");
 const cronService = require("./services/cronService");
@@ -87,6 +88,7 @@ app.use("/api/wazuh", wazuhRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/ip-analysis", ipAnalysisRoutes);
+app.use("/api/siem/demo", demoSiemRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {

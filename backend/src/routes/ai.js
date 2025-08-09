@@ -3,6 +3,7 @@ const { body, param, query, validationResult } = require('express-validator');
 const { protect, authorize } = require('../middleware/auth');
 const Case = require('../models/Case');
 const aiService = require('../services/aiService');
+const geminiService = require('../services/geminiService');
 const logger = require('../utils/logger');
 
 const router = express.Router();
@@ -579,6 +580,351 @@ router.get('/stats', authorize('admin', 'senior_analyst'), [
 
   } catch (error) {
     logger.error('Failed to get AI usage stats:', error);
+    next(error);
+  }
+});
+
+// ===== GEMINI AI ROUTES =====
+
+// @desc    Get Gemini-powered remediation suggestions for a case
+// @route   POST /api/ai/gemini/case/:caseId/remediation
+// @access  Private
+router.post('/gemini/case/:caseId/remediation', [
+  param('caseId').isMongoId().withMessage('Invalid case ID'),
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        error: { 
+          message: 'Validation errors', 
+          details: errors.array() 
+        }
+      });
+    }
+
+    const caseData = await Case.findById(req.params.caseId);
+    if (!caseData) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Case not found' }
+      });
+    }
+
+    // Check if user can access this case
+    if (req.user.role === 'analyst' && 
+        caseData.assignedTo && 
+        caseData.assignedTo.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: { message: 'Not authorized to access this case' }
+      });
+    }
+
+    if (!geminiService.isAvailable()) {
+      return res.status(503).json({
+        success: false,
+        error: { message: 'Gemini AI service is not available. Please configure GEMINI_API_KEY.' }
+      });
+    }
+
+    const suggestions = await geminiService.generateRemediationSuggestions(caseData);
+
+    // Update case with AI suggestions
+    await Case.findByIdAndUpdate(req.params.caseId, {
+      'aiAssistant.remediationSuggestions': suggestions.suggestions,
+      'aiAssistant.lastUpdated': suggestions.generatedAt,
+      $push: {
+        timeline: {
+          action: 'AI Analysis',
+          description: 'Gemini AI remediation suggestions generated',
+          userId: req.user._id,
+          timestamp: new Date(),
+          metadata: {
+            aiService: 'gemini-remediation',
+            suggestionsCount: suggestions.suggestions?.length || 0
+          }
+        }
+      }
+    });
+
+    logger.info('Gemini remediation suggestions requested', {
+      caseId: caseData.caseId,
+      userId: req.user._id,
+      suggestionsCount: suggestions.suggestions?.length || 0
+    });
+
+    res.status(200).json({
+      success: true,
+      data: suggestions,
+      message: 'Remediation suggestions generated successfully using Gemini AI'
+    });
+
+  } catch (error) {
+    logger.error('Gemini remediation request failed:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: error.message || 'Failed to generate remediation suggestions' }
+    });
+  }
+});
+
+// @desc    Generate Gemini executive summary for a case
+// @route   POST /api/ai/gemini/case/:caseId/executive-summary
+// @access  Private (Admin, Senior Analyst)
+router.post('/gemini/case/:caseId/executive-summary', authorize('admin', 'senior_analyst'), [
+  param('caseId').isMongoId().withMessage('Invalid case ID'),
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        error: { 
+          message: 'Validation errors', 
+          details: errors.array() 
+        }
+      });
+    }
+
+    const caseData = await Case.findById(req.params.caseId)
+      .populate('assignedTo', 'firstName lastName')
+      .populate('resolution.resolvedBy', 'firstName lastName');
+
+    if (!caseData) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Case not found' }
+      });
+    }
+
+    if (!geminiService.isAvailable()) {
+      return res.status(503).json({
+        success: false,
+        error: { message: 'Gemini AI service is not available. Please configure GEMINI_API_KEY.' }
+      });
+    }
+
+    const summary = await geminiService.generateExecutiveSummary(caseData);
+
+    // Update case with executive summary
+    await Case.findByIdAndUpdate(req.params.caseId, {
+      'aiAssistant.executiveSummary': summary.summary,
+      'aiAssistant.lastUpdated': summary.generatedAt,
+      $push: {
+        timeline: {
+          action: 'AI Analysis',
+          description: 'Gemini AI executive summary generated',
+          userId: req.user._id,
+          timestamp: new Date(),
+          metadata: {
+            aiService: 'gemini-executive-summary'
+          }
+        }
+      }
+    });
+
+    logger.info('Gemini executive summary requested', {
+      caseId: caseData.caseId,
+      userId: req.user._id
+    });
+
+    res.status(200).json({
+      success: true,
+      data: summary,
+      message: 'Executive summary generated successfully using Gemini AI'
+    });
+
+  } catch (error) {
+    logger.error('Gemini executive summary request failed:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: error.message || 'Failed to generate executive summary' }
+    });
+  }
+});
+
+// @desc    Generate Gemini compliance analysis for a case
+// @route   POST /api/ai/gemini/case/:caseId/compliance
+// @access  Private (Admin, Senior Analyst)
+router.post('/gemini/case/:caseId/compliance', authorize('admin', 'senior_analyst'), [
+  param('caseId').isMongoId().withMessage('Invalid case ID'),
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        error: { 
+          message: 'Validation errors', 
+          details: errors.array() 
+        }
+      });
+    }
+
+    const caseData = await Case.findById(req.params.caseId);
+    if (!caseData) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Case not found' }
+      });
+    }
+
+    if (!geminiService.isAvailable()) {
+      return res.status(503).json({
+        success: false,
+        error: { message: 'Gemini AI service is not available. Please configure GEMINI_API_KEY.' }
+      });
+    }
+
+    const compliance = await geminiService.generateComplianceAnalysis(caseData);
+
+    // Update case with compliance analysis
+    await Case.findByIdAndUpdate(req.params.caseId, {
+      'aiAssistant.complianceChecks': compliance.analysis,
+      'aiAssistant.lastUpdated': compliance.generatedAt,
+      $push: {
+        timeline: {
+          action: 'AI Analysis',
+          description: 'Gemini AI compliance analysis performed',
+          userId: req.user._id,
+          timestamp: new Date(),
+          metadata: {
+            aiService: 'gemini-compliance',
+            frameworksCount: compliance.analysis?.length || 0
+          }
+        }
+      }
+    });
+
+    logger.info('Gemini compliance analysis requested', {
+      caseId: caseData.caseId,
+      userId: req.user._id,
+      frameworksCount: compliance.analysis?.length || 0
+    });
+
+    res.status(200).json({
+      success: true,
+      data: compliance,
+      message: 'Compliance analysis generated successfully using Gemini AI'
+    });
+
+  } catch (error) {
+    logger.error('Gemini compliance analysis request failed:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: error.message || 'Failed to generate compliance analysis' }
+    });
+  }
+});
+
+// @desc    Generate PDF report for a case using Gemini AI
+// @route   GET /api/ai/gemini/case/:caseId/pdf-report
+// @access  Private
+router.get('/gemini/case/:caseId/pdf-report', [
+  param('caseId').isMongoId().withMessage('Invalid case ID'),
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        error: { 
+          message: 'Validation errors', 
+          details: errors.array() 
+        }
+      });
+    }
+
+    const caseData = await Case.findById(req.params.caseId)
+      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedBy', 'firstName lastName email')
+      .populate('resolution.resolvedBy', 'firstName lastName email');
+
+    if (!caseData) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Case not found' }
+      });
+    }
+
+    // Check if user can access this case
+    if (req.user.role === 'analyst' && 
+        caseData.assignedTo && 
+        caseData.assignedTo.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: { message: 'Not authorized to access this case' }
+      });
+    }
+
+    if (!geminiService.isAvailable()) {
+      return res.status(503).json({
+        success: false,
+        error: { message: 'Gemini AI service is not available. Please configure GEMINI_API_KEY.' }
+      });
+    }
+
+    // Generate comprehensive report data using Gemini
+    const reportData = await geminiService.generatePDFReportData(caseData);
+
+    // Add PDF generation to timeline
+    await Case.findByIdAndUpdate(req.params.caseId, {
+      $push: {
+        timeline: {
+          action: 'Report Generated',
+          description: 'AI-powered PDF report generated',
+          userId: req.user._id,
+          timestamp: new Date(),
+          metadata: {
+            aiService: 'gemini-pdf-report',
+            reportType: 'comprehensive'
+          }
+        }
+      }
+    });
+
+    logger.info('Gemini PDF report requested', {
+      caseId: caseData.caseId,
+      userId: req.user._id
+    });
+
+    // For now, return JSON data - PDF generation will be handled by frontend
+    res.status(200).json({
+      success: true,
+      data: reportData,
+      message: 'PDF report data generated successfully using Gemini AI'
+    });
+
+  } catch (error) {
+    logger.error('Gemini PDF report request failed:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: error.message || 'Failed to generate PDF report data' }
+    });
+  }
+});
+
+// @desc    Check Gemini service status
+// @route   GET /api/ai/gemini/status
+// @access  Private (Admin, Senior Analyst)
+router.get('/gemini/status', authorize('admin', 'senior_analyst'), async (req, res, next) => {
+  try {
+    const status = {
+      available: geminiService.isAvailable(),
+      service: 'Google Gemini AI',
+      configured: !!process.env.GEMINI_API_KEY,
+      model: 'gemini-pro'
+    };
+
+    res.status(200).json({
+      success: true,
+      data: status
+    });
+
+  } catch (error) {
+    logger.error('Gemini status check failed:', error);
     next(error);
   }
 });
