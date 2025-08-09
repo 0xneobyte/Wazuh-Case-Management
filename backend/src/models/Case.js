@@ -4,7 +4,6 @@ const caseSchema = new mongoose.Schema({
   caseId: {
     type: String,
     unique: true,
-    required: true,
     // Format: CASE-YYYY-MM-DD-XXXXX
   },
   title: {
@@ -211,13 +210,15 @@ caseSchema.virtual('timeToResolution').get(function() {
 caseSchema.pre('save', async function(next) {
   if (!this.caseId) {
     const date = new Date().toISOString().split('T')[0];
+    // Get current count of cases created today
     const count = await this.constructor.countDocuments({
-      createdAt: {
-        $gte: new Date(date),
-        $lt: new Date(date + 'T23:59:59.999Z')
-      }
+      caseId: { $regex: `^CASE-${date}-` }
     });
-    this.caseId = `CASE-${date}-${String(count + 1).padStart(5, '0')}`;
+    
+    // Generate sequential number with timestamp to ensure uniqueness
+    const timestamp = Date.now();
+    const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    this.caseId = `CASE-${date}-${String(count + 1).padStart(3, '0')}-${randomSuffix}`;
   }
   next();
 });

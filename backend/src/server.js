@@ -15,7 +15,7 @@ const notificationRoutes = require('./routes/notifications');
 const aiRoutes = require('./routes/ai');
 
 const { connectDatabase } = require('./config/database');
-const { setupCronJobs } = require('./services/cronService');
+const cronService = require('./services/cronService');
 const errorHandler = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
 
@@ -117,7 +117,7 @@ async function startServer() {
     await connectDatabase();
     
     // Setup cron jobs
-    setupCronJobs();
+    cronService.setupCronJobs();
     
     // Start server
     const server = app.listen(PORT, () => {
