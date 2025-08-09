@@ -1,36 +1,36 @@
-import axios from 'axios';
+import axios from "axios";
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api",
   timeout: 30000,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
 // Token management
 const getToken = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('token');
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("token");
   }
   return null;
 };
 
 const setToken = (token) => {
-  if (typeof window !== 'undefined') {
+  if (typeof window !== "undefined") {
     if (token) {
-      localStorage.setItem('token', token);
+      localStorage.setItem("token", token);
     } else {
-      localStorage.removeItem('token');
+      localStorage.removeItem("token");
     }
   }
 };
 
 const removeToken = () => {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
   }
 };
 
@@ -56,8 +56,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       removeToken();
-      if (typeof window !== 'undefined') {
-        window.location.href = '/auth/login';
+      if (typeof window !== "undefined") {
+        window.location.href = "/auth/login";
       }
     }
     return Promise.reject(error);
@@ -67,22 +67,22 @@ api.interceptors.response.use(
 // Authentication API
 export const authAPI = {
   login: async (email, password) => {
-    const response = await api.post('/auth/login', { email, password });
+    const response = await api.post("/auth/login", { email, password });
     if (response.data.success) {
       setToken(response.data.token);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("user", JSON.stringify(response.data.user));
       }
     }
     return response.data;
   },
 
   register: async (userData) => {
-    const response = await api.post('/auth/register', userData);
+    const response = await api.post("/auth/register", userData);
     if (response.data.success) {
       setToken(response.data.token);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("user", JSON.stringify(response.data.user));
       }
     }
     return response.data;
@@ -90,27 +90,27 @@ export const authAPI = {
 
   logout: async () => {
     try {
-      await api.post('/auth/logout');
+      await api.post("/auth/logout");
     } finally {
       removeToken();
     }
   },
 
   getCurrentUser: async () => {
-    const response = await api.get('/auth/me');
+    const response = await api.get("/auth/me");
     return response.data;
   },
 
   updateProfile: async (userData) => {
-    const response = await api.put('/auth/profile', userData);
-    if (response.data.success && typeof window !== 'undefined') {
-      localStorage.setItem('user', JSON.stringify(response.data.data));
+    const response = await api.put("/auth/profile", userData);
+    if (response.data.success && typeof window !== "undefined") {
+      localStorage.setItem("user", JSON.stringify(response.data.data));
     }
     return response.data;
   },
 
   updatePassword: async (currentPassword, newPassword) => {
-    const response = await api.put('/auth/updatepassword', {
+    const response = await api.put("/auth/updatepassword", {
       currentPassword,
       newPassword,
     });
@@ -118,12 +118,12 @@ export const authAPI = {
   },
 
   updatePreferences: async (preferences) => {
-    const response = await api.put('/auth/preferences', preferences);
+    const response = await api.put("/auth/preferences", preferences);
     return response.data;
   },
 
   forgotPassword: async (email) => {
-    const response = await api.post('/auth/forgotpassword', { email });
+    const response = await api.post("/auth/forgotpassword", { email });
     return response.data;
   },
 };
@@ -131,7 +131,7 @@ export const authAPI = {
 // Cases API
 export const casesAPI = {
   getCases: async (params = {}) => {
-    const response = await api.get('/cases', { params });
+    const response = await api.get("/cases", { params });
     return response.data;
   },
 
@@ -141,7 +141,7 @@ export const casesAPI = {
   },
 
   createCase: async (caseData) => {
-    const response = await api.post('/cases', caseData);
+    const response = await api.post("/cases", caseData);
     return response.data;
   },
 
@@ -169,7 +169,7 @@ export const casesAPI = {
   },
 
   getCaseStats: async () => {
-    const response = await api.get('/cases/stats/overview');
+    const response = await api.get("/cases/stats/overview");
     return response.data;
   },
 };
@@ -177,35 +177,37 @@ export const casesAPI = {
 // Dashboard API
 export const dashboardAPI = {
   getOverview: async () => {
-    const response = await api.get('/dashboard/overview');
+    const response = await api.get("/dashboard/overview");
     return response.data;
   },
 
   getPerformance: async (params = {}) => {
-    const response = await api.get('/dashboard/performance', { params });
+    const response = await api.get("/dashboard/performance", { params });
     return response.data;
   },
   getAnalystPerformance: async (params = {}) => {
-    const response = await api.get('/dashboard/analyst-performance', { params });
+    const response = await api.get("/dashboard/analyst-performance", {
+      params,
+    });
     return response.data;
   },
   getCaseMetrics: async (params = {}) => {
-    const response = await api.get('/dashboard/case-metrics', { params });
+    const response = await api.get("/dashboard/case-metrics", { params });
     return response.data;
   },
 
   getTrends: async (params = {}) => {
-    const response = await api.get('/dashboard/trends', { params });
+    const response = await api.get("/dashboard/trends", { params });
     return response.data;
   },
 
   getSLAMetrics: async (params = {}) => {
-    const response = await api.get('/dashboard/sla', { params });
+    const response = await api.get("/dashboard/sla", { params });
     return response.data;
   },
 
   getWorkload: async () => {
-    const response = await api.get('/dashboard/workload');
+    const response = await api.get("/dashboard/workload");
     return response.data;
   },
 };
@@ -213,7 +215,7 @@ export const dashboardAPI = {
 // Users API
 export const usersAPI = {
   getUsers: async (params = {}) => {
-    const response = await api.get('/users', { params });
+    const response = await api.get("/users", { params });
     return response.data;
   },
 
@@ -223,7 +225,7 @@ export const usersAPI = {
   },
 
   createUser: async (userData) => {
-    const response = await api.post('/users', userData);
+    const response = await api.post("/users", userData);
     return response.data;
   },
 
@@ -243,12 +245,12 @@ export const usersAPI = {
   },
 
   getUserStats: async () => {
-    const response = await api.get('/users/stats/overview');
+    const response = await api.get("/users/stats/overview");
     return response.data;
   },
 
   getWorkloadDistribution: async () => {
-    const response = await api.get('/users/workload');
+    const response = await api.get("/users/workload");
     return response.data;
   },
 };
@@ -256,42 +258,45 @@ export const usersAPI = {
 // Wazuh API
 export const wazuhAPI = {
   getStatus: async () => {
-    const response = await api.get('/wazuh/status');
+    const response = await api.get("/wazuh/status");
     return response.data;
   },
   testConnection: async () => {
-    const response = await api.get('/wazuh/test');
+    const response = await api.get("/wazuh/test");
     return response.data;
   },
   syncAlerts: async () => {
-    const response = await api.post('/wazuh/sync');
+    const response = await api.post("/wazuh/sync");
     return response.data;
   },
 
   getAlerts: async (params = {}) => {
-    const response = await api.get('/wazuh/alerts', { params });
+    const response = await api.get("/wazuh/alerts", { params });
     return response.data;
   },
 
   getNewAlerts: async (lastSync) => {
-    const response = await api.get('/wazuh/alerts/new', {
+    const response = await api.get("/wazuh/alerts/new", {
       params: { lastSync },
     });
     return response.data;
   },
 
   createCaseFromAlert: async (alertId, caseData = {}) => {
-    const response = await api.post(`/wazuh/alerts/${alertId}/create-case`, caseData);
+    const response = await api.post(
+      `/wazuh/alerts/${alertId}/create-case`,
+      caseData
+    );
     return response.data;
   },
 
   syncAlerts: async (params = {}) => {
-    const response = await api.post('/wazuh/sync', params);
+    const response = await api.post("/wazuh/sync", params);
     return response.data;
   },
 
   getAgents: async () => {
-    const response = await api.get('/wazuh/agents');
+    const response = await api.get("/wazuh/agents");
     return response.data;
   },
 
@@ -301,14 +306,14 @@ export const wazuhAPI = {
   },
 
   getRules: async (ruleIds = []) => {
-    const response = await api.get('/wazuh/rules', {
-      params: { ruleIds: ruleIds.join(',') },
+    const response = await api.get("/wazuh/rules", {
+      params: { ruleIds: ruleIds.join(",") },
     });
     return response.data;
   },
 
   getStats: async () => {
-    const response = await api.get('/wazuh/stats');
+    const response = await api.get("/wazuh/stats");
     return response.data;
   },
 };
@@ -316,12 +321,14 @@ export const wazuhAPI = {
 // AI API
 export const aiAPI = {
   generateResponse: async (data) => {
-    const response = await api.post('/ai/chat', data);
+    const response = await api.post("/ai/chat", data);
     return response.data;
   },
 
-  getRemediationSuggestions: async (caseId, context = '') => {
-    const response = await api.post(`/ai/case/${caseId}/remediation`, { context });
+  getRemediationSuggestions: async (caseId, context = "") => {
+    const response = await api.post(`/ai/case/${caseId}/remediation`, {
+      context,
+    });
     return response.data;
   },
 
@@ -341,7 +348,10 @@ export const aiAPI = {
   },
 
   getExecutiveSummary: async (caseId, options = {}) => {
-    const response = await api.post(`/ai/case/${caseId}/executive-summary`, options);
+    const response = await api.post(
+      `/ai/case/${caseId}/executive-summary`,
+      options
+    );
     return response.data;
   },
 
@@ -363,17 +373,17 @@ export const aiAPI = {
   },
 
   getStatus: async () => {
-    const response = await api.get('/ai/status');
+    const response = await api.get("/ai/status");
     return response.data;
   },
 
   testConnection: async () => {
-    const response = await api.post('/ai/test');
+    const response = await api.post("/ai/test");
     return response.data;
   },
 
   getStats: async (params = {}) => {
-    const response = await api.get('/ai/stats', { params });
+    const response = await api.get("/ai/stats", { params });
     return response.data;
   },
 };
@@ -381,7 +391,7 @@ export const aiAPI = {
 // Notifications API
 export const notificationsAPI = {
   testEmail: async (email) => {
-    const response = await api.post('/notifications/test-email', { email });
+    const response = await api.post("/notifications/test-email", { email });
     return response.data;
   },
 
@@ -396,29 +406,32 @@ export const notificationsAPI = {
   },
 
   sendEscalationAlert: async (caseId, escalatedTo) => {
-    const response = await api.post(`/notifications/case/${caseId}/escalation`, {
-      escalatedTo,
-    });
+    const response = await api.post(
+      `/notifications/case/${caseId}/escalation`,
+      {
+        escalatedTo,
+      }
+    );
     return response.data;
   },
 
   sendDailyDigest: async (userIds = []) => {
-    const response = await api.post('/notifications/daily-digest', { userIds });
+    const response = await api.post("/notifications/daily-digest", { userIds });
     return response.data;
   },
 
   getStats: async (params = {}) => {
-    const response = await api.get('/notifications/stats', { params });
+    const response = await api.get("/notifications/stats", { params });
     return response.data;
   },
 
   getPreferences: async () => {
-    const response = await api.get('/notifications/preferences');
+    const response = await api.get("/notifications/preferences");
     return response.data;
   },
 
   updatePreferences: async (preferences) => {
-    const response = await api.put('/notifications/preferences', preferences);
+    const response = await api.put("/notifications/preferences", preferences);
     return response.data;
   },
 };
@@ -427,7 +440,8 @@ export const notificationsAPI = {
 export const handleAPIError = (error) => {
   if (error.response) {
     // Server responded with error status
-    const message = error.response.data?.error?.message || error.response.statusText;
+    const message =
+      error.response.data?.error?.message || error.response.statusText;
     return {
       message,
       status: error.response.status,
@@ -436,14 +450,14 @@ export const handleAPIError = (error) => {
   } else if (error.request) {
     // Network error
     return {
-      message: 'Network error. Please check your internet connection.',
+      message: "Network error. Please check your internet connection.",
       status: 0,
       details: null,
     };
   } else {
     // Other error
     return {
-      message: error.message || 'An unexpected error occurred.',
+      message: error.message || "An unexpected error occurred.",
       status: -1,
       details: null,
     };

@@ -1,28 +1,54 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '../../providers/AuthProvider';
-import DashboardLayout from '../../components/layout/DashboardLayout';
-import { casesAPI, handleAPIError } from '@/services/api';
-import { 
-  PlusIcon,
-  FunnelIcon,
-  MagnifyingGlassIcon,
-  ExclamationTriangleIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  XCircleIcon
-} from '@heroicons/react/24/outline';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../../providers/AuthProvider";
+import DashboardLayout from "../../components/layout/DashboardLayout";
+import { casesAPI, handleAPIError } from "@/services/api";
+import {
+  Plus,
+  Filter,
+  Search,
+  AlertTriangle,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Calendar,
+  User,
+  ArrowRight,
+  MoreHorizontal,
+  Eye,
+  Edit,
+  Trash2,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 interface Case {
   _id: string;
   caseId: string;
   title: string;
   description: string;
-  priority: 'P1' | 'P2' | 'P3';
-  status: 'Open' | 'In Progress' | 'Resolved' | 'Closed';
-  severity: 'Critical' | 'High' | 'Medium' | 'Low';
+  priority: "P1" | "P2" | "P3";
+  status: "Open" | "In Progress" | "Resolved" | "Closed";
+  severity: "Critical" | "High" | "Medium" | "Low";
   category: string;
   assignedTo?: {
     firstName: string;
@@ -49,12 +75,12 @@ interface CasesResponse {
 
 const StatusIcon = ({ status }: { status: string }) => {
   const icons = {
-    'Open': ExclamationTriangleIcon,
-    'In Progress': ClockIcon,
-    'Resolved': CheckCircleIcon,
-    'Closed': XCircleIcon
+    Open: AlertTriangle,
+    "In Progress": Clock,
+    Resolved: CheckCircle,
+    Closed: XCircle,
   };
-  const Icon = icons[status as keyof typeof icons] || ExclamationTriangleIcon;
+  const Icon = icons[status as keyof typeof icons] || AlertTriangle;
   return <Icon className="h-4 w-4" />;
 };
 
@@ -65,19 +91,21 @@ export default function CasesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pagination, setPagination] = useState<CasesResponse['pagination'] | null>(null);
-  
+  const [pagination, setPagination] = useState<
+    CasesResponse["pagination"] | null
+  >(null);
+
   // Filters
   const [filters, setFilters] = useState({
-    status: '',
-    priority: '',
-    category: '',
-    search: '',
+    status: "",
+    priority: "",
+    category: "",
+    search: "",
   });
 
   useEffect(() => {
     if (!isLoading && !user) {
-      router.push('/auth/login');
+      router.push("/auth/login");
     } else if (user) {
       loadCases();
     }
@@ -91,7 +119,7 @@ export default function CasesPage() {
       const params: Record<string, unknown> = {
         page: currentPage,
         limit: 20,
-        sort: '-createdAt',
+        sort: "-createdAt",
       };
 
       // Add filters
@@ -106,11 +134,10 @@ export default function CasesPage() {
         setCases(response.data);
         setPagination(response.pagination);
       } else {
-        throw new Error(response.error?.message || 'Failed to load cases');
+        setError(response.message || "Failed to load cases");
       }
-
     } catch (error) {
-      console.error('Cases loading error:', error);
+      console.error("Cases loading error:", error);
       const apiError = handleAPIError(error);
       setError(apiError.message);
     } finally {
@@ -119,51 +146,64 @@ export default function CasesPage() {
   };
 
   const handleFilterChange = (key: string, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-    setCurrentPage(1); // Reset to first page when filtering
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setCurrentPage(1); // Reset to first page when filters change
   };
 
   const clearFilters = () => {
     setFilters({
-      status: '',
-      priority: '',
-      category: '',
-      search: '',
+      status: "",
+      priority: "",
+      category: "",
+      search: "",
     });
     setCurrentPage(1);
   };
 
   const getPriorityColor = (priority: string) => {
-    const colors = {
-      'P1': 'bg-red-100 text-red-800',
-      'P2': 'bg-yellow-100 text-yellow-800',
-      'P3': 'bg-green-100 text-green-800'
-    };
-    return colors[priority as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    switch (priority) {
+      case "P1":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "P2":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "P3":
+        return "bg-green-100 text-green-800 border-green-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
   };
 
   const getStatusColor = (status: string) => {
-    const colors = {
-      'Open': 'bg-red-100 text-red-800',
-      'In Progress': 'bg-blue-100 text-blue-800',
-      'Resolved': 'bg-green-100 text-green-800',
-      'Closed': 'bg-gray-100 text-gray-800'
-    };
-    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    switch (status) {
+      case "Open":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "In Progress":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "Resolved":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "Closed":
+        return "bg-gray-100 text-gray-800 border-gray-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+    return new Date(dateString).toLocaleDateString();
   };
 
   const isOverdue = (dueDate: string, status: string) => {
-    return new Date(dueDate) < new Date() && !['Resolved', 'Closed'].includes(status);
+    if (status === "Closed" || status === "Resolved") return false;
+    return new Date(dueDate) < new Date();
   };
 
-  if (isLoading || loading) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">Loading cases...</p>
+        </div>
       </div>
     );
   }
@@ -174,213 +214,266 @@ export default function CasesPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6">
+      <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="sm:flex sm:items-center sm:justify-between mb-6">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Cases</h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Manage and track security cases
+            <h1 className="text-3xl font-bold tracking-tight">
+              Security Cases
+            </h1>
+            <p className="text-muted-foreground">
+              Manage and track security incidents and alerts
             </p>
           </div>
-          {user?.role !== 'viewer' && (
-            <div className="mt-4 sm:mt-0">
-              <button
-                onClick={() => router.push('/cases/create')}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
-                Create Case
-              </button>
-            </div>
+          {user?.role !== "viewer" && (
+            <Button onClick={() => router.push("/cases/create")}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Case
+            </Button>
           )}
         </div>
 
-        {error && (
-          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            <p>Error: {error}</p>
-            <button 
-              onClick={loadCases}
-              className="mt-2 text-sm underline hover:no-underline"
-            >
-              Retry
-            </button>
-          </div>
-        )}
-
         {/* Filters */}
-        <div className="bg-white shadow rounded-lg mb-6">
-          <div className="px-4 py-3 border-b border-gray-200">
-            <div className="flex items-center space-x-4">
-              <FunnelIcon className="h-5 w-5 text-gray-400" />
-              <span className="text-sm font-medium text-gray-700">Filters</span>
-            </div>
-          </div>
-          <div className="px-4 py-3">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Filters
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               {/* Search */}
               <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
                   placeholder="Search cases..."
                   value={filters.search}
-                  onChange={(e) => handleFilterChange('search', e.target.value)}
-                  className="pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-full"
+                  onChange={(e) => handleFilterChange("search", e.target.value)}
+                  className="pl-10"
                 />
               </div>
 
               {/* Status Filter */}
-              <select
+              <Select
                 value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                onValueChange={(value) => handleFilterChange("status", value)}
               >
-                <option value="">All Statuses</option>
-                <option value="Open">Open</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Resolved">Resolved</option>
-                <option value="Closed">Closed</option>
-              </select>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Status</SelectItem>
+                  <SelectItem value="Open">Open</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Resolved">Resolved</SelectItem>
+                  <SelectItem value="Closed">Closed</SelectItem>
+                </SelectContent>
+              </Select>
 
               {/* Priority Filter */}
-              <select
+              <Select
                 value={filters.priority}
-                onChange={(e) => handleFilterChange('priority', e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                onValueChange={(value) => handleFilterChange("priority", value)}
               >
-                <option value="">All Priorities</option>
-                <option value="P1">P1 - Critical</option>
-                <option value="P2">P2 - High</option>
-                <option value="P3">P3 - Medium</option>
-              </select>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Priorities" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Priorities</SelectItem>
+                  <SelectItem value="P1">P1 - Critical</SelectItem>
+                  <SelectItem value="P2">P2 - High</SelectItem>
+                  <SelectItem value="P3">P3 - Medium</SelectItem>
+                </SelectContent>
+              </Select>
 
               {/* Category Filter */}
-              <select
+              <Select
                 value={filters.category}
-                onChange={(e) => handleFilterChange('category', e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                onValueChange={(value) => handleFilterChange("category", value)}
               >
-                <option value="">All Categories</option>
-                <option value="Malware">Malware</option>
-                <option value="Intrusion">Intrusion</option>
-                <option value="Policy Violation">Policy Violation</option>
-                <option value="Vulnerability">Vulnerability</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Categories</SelectItem>
+                  <SelectItem value="Malware">Malware</SelectItem>
+                  <SelectItem value="Phishing">Phishing</SelectItem>
+                  <SelectItem value="DDoS">DDoS</SelectItem>
+                  <SelectItem value="Data Breach">Data Breach</SelectItem>
+                  <SelectItem value="Insider Threat">Insider Threat</SelectItem>
+                </SelectContent>
+              </Select>
 
-            {/* Clear Filters */}
-            <div className="mt-3 flex justify-end">
-              <button
-                onClick={clearFilters}
-                className="text-sm text-gray-500 hover:text-gray-700"
-              >
-                Clear filters
-              </button>
+              {/* Clear Filters */}
+              <Button variant="outline" onClick={clearFilters}>
+                Clear Filters
+              </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg">
+            <p>Error loading cases: {error}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadCases}
+              className="mt-2"
+            >
+              Retry
+            </Button>
           </div>
-        </div>
+        )}
 
-        {/* Cases List */}
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          {cases.length > 0 ? (
-            <ul className="divide-y divide-gray-200">
-              {cases.map((case_) => (
-                <li key={case_._id}>
-                  <div 
-                    className="px-4 py-4 hover:bg-gray-50 cursor-pointer"
-                    onClick={() => router.push(`/cases/${case_._id}`)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2">
-                          <StatusIcon status={case_.status} />
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {case_.title}
-                          </p>
-                          {isOverdue(case_.sla.dueDate, case_.status) && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                              OVERDUE
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-500 mt-1">
-                          {case_.caseId} • {case_.assignedTo ? 
-                            `Assigned to ${case_.assignedTo.firstName} ${case_.assignedTo.lastName}` : 
-                            'Unassigned'
-                          }
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          Created {formatDate(case_.createdAt)} • Due {formatDate(case_.sla.dueDate)}
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(case_.priority)}`}>
-                          {case_.priority}
+        {/* Cases Grid */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i} className="animate-pulse">
+                <CardHeader>
+                  <div className="h-4 bg-muted rounded w-3/4"></div>
+                  <div className="h-3 bg-muted rounded w-1/2"></div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="h-3 bg-muted rounded"></div>
+                    <div className="h-3 bg-muted rounded w-5/6"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : cases.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {cases.map((case_) => (
+              <Card
+                key={case_._id}
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => router.push(`/cases/${case_._id}`)}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-lg truncate">
+                        {case_.title}
+                      </CardTitle>
+                      <CardDescription className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs">
+                          {case_.caseId}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {formatDate(case_.createdAt)}
                         </span>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(case_.status)}`}>
-                          {case_.status}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {case_.category}
-                        </span>
-                      </div>
+                      </CardDescription>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {case_.description}
+                  </p>
+
+                  <div className="flex items-center gap-2">
+                    <Badge className={getPriorityColor(case_.priority)}>
+                      {case_.priority}
+                    </Badge>
+                    <Badge className={getStatusColor(case_.status)}>
+                      <StatusIcon status={case_.status} />
+                      <span className="ml-1">{case_.status}</span>
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <User className="h-4 w-4" />
+                      <span>
+                        {case_.assignedTo
+                          ? `${case_.assignedTo.firstName} ${case_.assignedTo.lastName}`
+                          : "Unassigned"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      <span
+                        className={cn(
+                          isOverdue(case_.sla.dueDate, case_.status) &&
+                            "text-destructive font-medium"
+                        )}
+                      >
+                        {formatDate(case_.sla.dueDate)}
+                      </span>
                     </div>
                   </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="text-center py-12">
-              <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No cases found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {Object.values(filters).some(v => v) ? 
-                  'Try adjusting your filters or search terms.' :
-                  'Get started by creating a new case.'
-                }
+
+                  <Separator />
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      {case_.category}
+                    </span>
+                    <Button variant="ghost" size="sm" className="h-8 px-2">
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-medium mb-2">No cases found</h3>
+              <p className="text-muted-foreground text-center mb-4">
+                {filters.search ||
+                filters.status ||
+                filters.priority ||
+                filters.category
+                  ? "Try adjusting your filters to see more results."
+                  : "Get started by creating your first security case."}
               </p>
-              {user?.role !== 'viewer' && !Object.values(filters).some(v => v) && (
-                <div className="mt-6">
-                  <button
-                    onClick={() => router.push('/cases/create')}
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
-                    Create your first case
-                  </button>
-                </div>
+              {user?.role !== "viewer" && (
+                <Button onClick={() => router.push("/cases/create")}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Case
+                </Button>
               )}
-            </div>
-          )}
-        </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-between">
-            <div className="text-sm text-gray-700">
-              Showing {((currentPage - 1) * 20) + 1} to {Math.min(currentPage * 20, pagination.totalCount)} of{' '}
-              {pagination.totalCount} cases
-            </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing page {pagination.page} of {pagination.totalPages} (
+              {pagination.totalCount} total cases)
+            </p>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage - 1)}
                 disabled={!pagination.hasPrevPage}
-                className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
               >
                 Previous
-              </button>
-              <span className="px-3 py-1 text-sm">
-                Page {currentPage} of {pagination.totalPages}
-              </span>
-              <button
-                onClick={() => setCurrentPage(prev => prev + 1)}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage + 1)}
                 disabled={!pagination.hasNextPage}
-                className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
               >
                 Next
-              </button>
+              </Button>
             </div>
           </div>
         )}

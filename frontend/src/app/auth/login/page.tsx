@@ -1,16 +1,33 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '../../../providers/AuthProvider';
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../../../providers/AuthProvider";
+import { Eye, EyeOff, Shield, Lock, Mail } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+    general?: string;
+  }>({});
 
   const { user, login, isLoading } = useAuth();
   const router = useRouter();
@@ -18,7 +35,7 @@ export default function LoginPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (!isLoading && user) {
-      router.push('/');
+      router.push("/");
     }
   }, [user, isLoading, router]);
 
@@ -26,15 +43,15 @@ export default function LoginPage() {
     const newErrors: { email?: string; password?: string } = {};
 
     if (!email) {
-      newErrors.email = 'Email is required';
+      newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Email is invalid';
+      newErrors.email = "Email is invalid";
     }
 
     if (!password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = "Password is required";
     } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = "Password must be at least 6 characters";
     }
 
     setErrors(newErrors);
@@ -53,17 +70,23 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      router.push('/');
+      router.push("/");
     } catch (error: unknown) {
-      console.error('Login error:', error);
-      const message = error instanceof Error ? error.message : 'Login failed';
-      
+      console.error("Login error:", error);
+      const message = error instanceof Error ? error.message : "Login failed";
+
       // Set specific error based on message content
-      if (message.includes('email') || message.includes('user not found')) {
+      if (message.includes("email") || message.includes("user not found")) {
         setErrors({ email: message });
-      } else if (message.includes('password') || message.includes('invalid credentials')) {
+      } else if (
+        message.includes("password") ||
+        message.includes("invalid credentials")
+      ) {
         setErrors({ password: message });
-      } else if (message.includes('deactivated') || message.includes('locked')) {
+      } else if (
+        message.includes("deactivated") ||
+        message.includes("locked")
+      ) {
         setErrors({ general: message });
       } else {
         setErrors({ general: message });
@@ -75,153 +98,177 @@ export default function LoginPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <div className="mx-auto h-12 w-auto flex items-center justify-center">
-            <h2 className="text-3xl font-bold text-gray-900">SENTRYA</h2>
+    <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md space-y-8">
+        {/* Header */}
+        <div className="text-center">
+          <div className="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-primary/10 mb-4">
+            <Shield className="h-8 w-8 text-primary" />
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Access your security case management dashboard
+          <h1 className="text-3xl font-bold tracking-tight">SENTRYA</h1>
+          <p className="mt-2 text-muted-foreground">
+            AI-powered security case management system
           </p>
         </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {/* General error message */}
-          {errors.general && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="text-sm text-red-700">
-                {errors.general}
+
+        {/* Login Card */}
+        <Card className="border-0 shadow-lg">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl text-center">
+              Sign in to your account
+            </CardTitle>
+            <CardDescription className="text-center">
+              Access your security case management dashboard
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* General error message */}
+              {errors.general && (
+                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                  {errors.general}
+                </div>
+              )}
+
+              {/* Email field */}
+              <div className="space-y-2">
+                <Label htmlFor="email">Email address</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (errors.email)
+                        setErrors({ ...errors, email: undefined });
+                    }}
+                    className={cn(
+                      "pl-10",
+                      errors.email &&
+                        "border-destructive focus-visible:ring-destructive"
+                    )}
+                  />
+                </div>
+                {errors.email && (
+                  <p className="text-sm text-destructive">{errors.email}</p>
+                )}
+              </div>
+
+              {/* Password field */}
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (errors.password)
+                        setErrors({ ...errors, password: undefined });
+                    }}
+                    className={cn(
+                      "pl-10 pr-10",
+                      errors.password &&
+                        "border-destructive focus-visible:ring-destructive"
+                    )}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                </div>
+                {errors.password && (
+                  <p className="text-sm text-destructive">{errors.password}</p>
+                )}
+              </div>
+
+              {/* Remember me and forgot password */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="remember" />
+                  <Label htmlFor="remember" className="text-sm font-normal">
+                    Remember me
+                  </Label>
+                </div>
+                <Button variant="link" className="px-0 text-sm">
+                  Forgot password?
+                </Button>
+              </div>
+
+              {/* Submit button */}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Signing in...
+                  </>
+                ) : (
+                  "Sign in"
+                )}
+              </Button>
+            </form>
+
+            <Separator className="my-6" />
+
+            {/* Demo credentials */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-center">
+                Demo Credentials
+              </h4>
+              <div className="space-y-2 text-xs">
+                <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                  <p className="font-medium text-blue-800">Admin</p>
+                  <p className="text-blue-700">
+                    admin@company.com / password123
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+                  <p className="font-medium text-green-800">Analyst</p>
+                  <p className="text-green-700">
+                    analyst@company.com / password123
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-purple-50 border border-purple-200">
+                  <p className="font-medium text-purple-800">Senior Analyst</p>
+                  <p className="text-purple-700">
+                    senior@company.com / password123
+                  </p>
+                </div>
               </div>
             </div>
-          )}
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="email-address" className="sr-only">
-                Email address
-              </label>
-              <input
-                id="email-address"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className={`appearance-none rounded-none relative block w-full px-3 py-2 border ${
-                  errors.email ? 'border-red-300' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  if (errors.email) setErrors({ ...errors, email: undefined });
-                }}
-              />
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-              )}
-            </div>
-            
-            <div className="relative">
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
-                required
-                className={`appearance-none rounded-none relative block w-full px-3 py-2 pr-10 border ${
-                  errors.password ? 'border-red-300' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                placeholder="Password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (errors.password) setErrors({ ...errors, password: undefined });
-                }}
-              />
-              <button
-                type="button"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <EyeSlashIcon className="h-5 w-5 text-gray-400" />
-                ) : (
-                  <EyeIcon className="h-5 w-5 text-gray-400" />
-                )}
-              </button>
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-              )}
-            </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                Remember me
-              </label>
-            </div>
-
-            <div className="text-sm">
-              <a
-                href="/auth/forgot-password"
-                className="font-medium text-blue-600 hover:text-blue-500"
-              >
-                Forgot your password?
-              </a>
-            </div>
-          </div>
-
-          <div>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
-                isSubmitting
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-              }`}
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Signing in...
-                </>
-              ) : (
-                'Sign in'
-              )}
-            </button>
-          </div>
-
-          {/* Demo credentials */}
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-            <h4 className="text-sm font-medium text-blue-800 mb-2">Demo Credentials:</h4>
-            <div className="space-y-1 text-xs text-blue-700">
-              <p><strong>Admin:</strong> admin@company.com / password123</p>
-              <p><strong>Analyst:</strong> analyst@company.com / password123</p>
-              <p><strong>Senior Analyst:</strong> senior@company.com / password123</p>
-            </div>
-          </div>
-        </form>
+        {/* Footer */}
+        <div className="text-center text-sm text-muted-foreground">
+          <p>© 2024 SENTRYA. All rights reserved.</p>
+          <p className="mt-1">CICRA CAMPUS - Security Case Management System</p>
+        </div>
       </div>
     </div>
   );
