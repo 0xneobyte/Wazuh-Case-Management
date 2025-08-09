@@ -97,9 +97,9 @@ export default function CasesPage() {
 
   // Filters
   const [filters, setFilters] = useState({
-    status: "",
-    priority: "",
-    category: "",
+    status: "all",
+    priority: "all",
+    category: "all",
     search: "",
   });
 
@@ -123,9 +123,12 @@ export default function CasesPage() {
       };
 
       // Add filters
-      if (filters.status) params.status = filters.status;
-      if (filters.priority) params.priority = filters.priority;
-      if (filters.category) params.category = filters.category;
+      if (filters.status && filters.status !== "all")
+        params.status = filters.status;
+      if (filters.priority && filters.priority !== "all")
+        params.priority = filters.priority;
+      if (filters.category && filters.category !== "all")
+        params.category = filters.category;
       if (filters.search) params.search = filters.search;
 
       const response = await casesAPI.getCases(params);
@@ -152,9 +155,9 @@ export default function CasesPage() {
 
   const clearFilters = () => {
     setFilters({
-      status: "",
-      priority: "",
-      category: "",
+      status: "all",
+      priority: "all",
+      category: "all",
       search: "",
     });
     setCurrentPage(1);
@@ -263,7 +266,7 @@ export default function CasesPage() {
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Status</SelectItem>
+                  <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="Open">Open</SelectItem>
                   <SelectItem value="In Progress">In Progress</SelectItem>
                   <SelectItem value="Resolved">Resolved</SelectItem>
@@ -280,7 +283,7 @@ export default function CasesPage() {
                   <SelectValue placeholder="All Priorities" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Priorities</SelectItem>
+                  <SelectItem value="all">All Priorities</SelectItem>
                   <SelectItem value="P1">P1 - Critical</SelectItem>
                   <SelectItem value="P2">P2 - High</SelectItem>
                   <SelectItem value="P3">P3 - Medium</SelectItem>
@@ -296,12 +299,12 @@ export default function CasesPage() {
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Categories</SelectItem>
-                  <SelectItem value="Malware">Malware</SelectItem>
-                  <SelectItem value="Phishing">Phishing</SelectItem>
-                  <SelectItem value="DDoS">DDoS</SelectItem>
-                  <SelectItem value="Data Breach">Data Breach</SelectItem>
-                  <SelectItem value="Insider Threat">Insider Threat</SelectItem>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="malware">Malware</SelectItem>
+                  <SelectItem value="phishing">Phishing</SelectItem>
+                  <SelectItem value="ddos">DDoS</SelectItem>
+                  <SelectItem value="data-breach">Data Breach</SelectItem>
+                  <SelectItem value="insider-threat">Insider Threat</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -360,14 +363,14 @@ export default function CasesPage() {
                       <CardTitle className="text-lg truncate">
                         {case_.title}
                       </CardTitle>
-                      <CardDescription className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-1">
                         <Badge variant="outline" className="text-xs">
                           {case_.caseId}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
                           {formatDate(case_.createdAt)}
                         </span>
-                      </CardDescription>
+                      </div>
                     </div>
                     <Button variant="ghost" size="icon" className="h-8 w-8">
                       <MoreHorizontal className="h-4 w-4" />

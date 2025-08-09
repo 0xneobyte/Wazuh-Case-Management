@@ -24,10 +24,10 @@ interface AnalystPerformance {
   performance: {
     totalCasesAssigned: number;
     totalCasesResolved: number;
-    avgResolutionTime: number;
+    avgResolutionTime: number | null;
     currentCaseLoad: number;
     overdueCases: number;
-    rating: number;
+    rating: number | null;
   };
 }
 
@@ -38,7 +38,7 @@ interface CaseMetrics {
   resolvedCases: number;
   closedCases: number;
   overdueCases: number;
-  avgResolutionTime: number;
+  avgResolutionTime: number | null;
   casesByPriority: {
     P1: number;
     P2: number;
@@ -104,7 +104,10 @@ export default function AnalyticsPage() {
     }
   };
 
-  const formatDuration = (hours: number) => {
+  const formatDuration = (hours: number | null | undefined) => {
+    if (hours === null || hours === undefined || isNaN(hours)) {
+      return 'N/A';
+    }
     if (hours < 24) {
       return `${hours.toFixed(1)}h`;
     }
@@ -113,13 +116,15 @@ export default function AnalyticsPage() {
     return `${days}d ${remainingHours.toFixed(0)}h`;
   };
 
-  const getPerformanceColor = (rating: number) => {
+  const getPerformanceColor = (rating: number | null | undefined) => {
+    if (!rating) return 'text-gray-500';
     if (rating >= 4.5) return 'text-green-600';
     if (rating >= 3.5) return 'text-yellow-600';
     return 'text-red-600';
   };
 
-  const getPerformanceLabel = (rating: number) => {
+  const getPerformanceLabel = (rating: number | null | undefined) => {
+    if (!rating) return 'No Data';
     if (rating >= 4.5) return 'Excellent';
     if (rating >= 3.5) return 'Good';
     if (rating >= 2.5) return 'Average';
@@ -414,7 +419,7 @@ export default function AnalyticsPage() {
                             <TrophyIcon className={`h-4 w-4 ${getPerformanceColor(analyst.performance.rating)}`} />
                             <div>
                               <div className="text-sm font-medium text-gray-900">
-                                {analyst.performance.rating.toFixed(1)}/5.0
+                                {analyst.performance.rating ? analyst.performance.rating.toFixed(1) : 'N/A'}/5.0
                               </div>
                               <div className={`text-xs ${getPerformanceColor(analyst.performance.rating)}`}>
                                 {getPerformanceLabel(analyst.performance.rating)}
