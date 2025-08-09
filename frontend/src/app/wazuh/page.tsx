@@ -4,160 +4,236 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../providers/AuthProvider';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { wazuhAPI, handleAPIError } from '@/services/api';
+import { handleAPIError } from '@/services/api';
 import { 
   ShieldCheckIcon,
+  ServerIcon,
+  ArrowTopRightOnSquareIcon,
+  PlayIcon,
+  CheckCircleIcon,
   ExclamationTriangleIcon,
   ClockIcon,
-  ArrowPathIcon,
-  SignalIcon,
-  ServerIcon,
-  EyeIcon
+  CogIcon,
+  DocumentTextIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
-interface WazuhAlert {
+interface SIEMIntegration {
   id: string;
-  timestamp: string;
-  agent: {
-    id: string;
-    name: string;
-    ip: string;
-  };
-  rule: {
-    id: number;
-    level: number;
-    description: string;
-    groups: string[];
-  };
-  location: string;
-  full_log: string;
-  decoder: {
-    name: string;
-  };
-  data?: unknown;
+  name: string;
+  description: string;
+  type: 'open-source' | 'commercial' | 'demo';
+  status: 'connected' | 'disconnected' | 'available' | 'configured';
+  logo?: string;
+  features: string[];
+  alertCount?: number;
+  lastSync?: string;
+  version?: string;
+  documentation?: string;
 }
 
-interface WazuhStatus {
-  connected: boolean;
-  lastSync: string;
-  version: string;
-  totalAgents: number;
-  activeAgents: number;
-  alertsToday: number;
-}
+const SIEM_INTEGRATIONS: SIEMIntegration[] = [
+  {
+    id: 'demo-siem',
+    name: 'Demo SIEM',
+    description: 'Demonstration SIEM with sample security alerts and events for testing purposes',
+    type: 'demo',
+    status: 'available',
+    features: [
+      'Sample Security Alerts',
+      'Demo Attack Scenarios', 
+      'Synthetic Log Data',
+      'Testing Environment'
+    ],
+    documentation: '#demo-siem-docs'
+  },
+  {
+    id: 'wazuh',
+    name: 'Wazuh SIEM',
+    description: 'Open-source security platform that performs log analysis, file integrity checking, policy monitoring and intrusion detection',
+    type: 'open-source',
+    status: 'configured',
+    features: [
+      'Real-time Log Analysis',
+      'Intrusion Detection',
+      'File Integrity Monitoring',
+      'Vulnerability Detection',
+      'Compliance Reporting'
+    ],
+    alertCount: 47,
+    lastSync: '2025-08-09T15:30:00Z',
+    version: '4.7.3',
+    documentation: 'https://documentation.wazuh.com/'
+  },
+  {
+    id: 'elastic-siem',
+    name: 'Elastic Security',
+    description: 'Elastic Security combines SIEM, endpoint security, and threat hunting in a single solution',
+    type: 'open-source',
+    status: 'available',
+    features: [
+      'SIEM & Analytics',
+      'Endpoint Security',
+      'Threat Hunting',
+      'Timeline Analysis',
+      'Machine Learning'
+    ],
+    documentation: 'https://www.elastic.co/guide/en/security/current/index.html'
+  },
+  {
+    id: 'opensearch',
+    name: 'OpenSearch Security',
+    description: 'Open-source search and analytics suite with built-in security analytics capabilities',
+    type: 'open-source', 
+    status: 'available',
+    features: [
+      'Security Analytics',
+      'Log Correlation',
+      'Anomaly Detection',
+      'Threat Intelligence',
+      'Custom Dashboards'
+    ],
+    documentation: 'https://opensearch.org/docs/latest/security-analytics/'
+  },
+  {
+    id: 'suricata',
+    name: 'Suricata IDS/IPS',
+    description: 'High performance Network IDS, IPS and Network Security Monitoring engine',
+    type: 'open-source',
+    status: 'available', 
+    features: [
+      'Network Intrusion Detection',
+      'Protocol Analysis',
+      'File Extraction',
+      'Lua Scripting',
+      'Multi-threading'
+    ],
+    documentation: 'https://docs.suricata.io/'
+  },
+  {
+    id: 'osquery',
+    name: 'OSquery',
+    description: 'SQL-based framework for querying operating system information as a relational database',
+    type: 'open-source',
+    status: 'available',
+    features: [
+      'Endpoint Visibility',
+      'SQL-based Queries', 
+      'Cross-platform Support',
+      'Real-time Monitoring',
+      'Incident Response'
+    ],
+    documentation: 'https://osquery.readthedocs.io/'
+  },
+  {
+    id: 'graylog',
+    name: 'Graylog',
+    description: 'Centralized log management platform with powerful search and analysis capabilities',
+    type: 'open-source',
+    status: 'available',
+    features: [
+      'Log Management',
+      'Stream Processing',
+      'Alerting & Notifications',
+      'Search & Analysis',
+      'Dashboard Creation'
+    ],
+    documentation: 'https://docs.graylog.org/'
+  },
+  {
+    id: 'security-onion',
+    name: 'Security Onion',
+    description: 'Linux distro for threat hunting, enterprise security monitoring, and log management',
+    type: 'open-source',
+    status: 'available',
+    features: [
+      'Network Security Monitoring',
+      'Threat Hunting',
+      'Log Management',
+      'Incident Response',
+      'All-in-one Solution'
+    ],
+    documentation: 'https://docs.securityonion.net/'
+  }
+];
 
-export default function WazuhPage() {
+export default function SIEMIntegrationPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
-  const [alerts, setAlerts] = useState<WazuhAlert[]>([]);
-  const [status, setStatus] = useState<WazuhStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [integrations, setIntegrations] = useState<SIEMIntegration[]>(SIEM_INTEGRATIONS);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [syncing, setSyncing] = useState(false);
-  const [filters, setFilters] = useState({
-    level: '',
-    agent: '',
-    rule: ''
-  });
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/auth/login');
     } else if (user) {
-      // Check if user has permission to access Wazuh integration
+      // Check if user has permission to access SIEM integrations
       if (!['admin', 'senior_analyst'].includes(user.role)) {
         router.push('/');
         return;
       }
-      loadWazuhData();
     }
   }, [user, isLoading, router]);
 
-  const loadWazuhData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const [statusResponse, alertsResponse] = await Promise.all([
-        wazuhAPI.getStatus(),
-        wazuhAPI.getAlerts({ limit: 50 })
-      ]);
-
-      if (statusResponse.success) {
-        setStatus(statusResponse.data);
+  const handleIntegrationClick = (integration: SIEMIntegration) => {
+    if (integration.id === 'demo-siem') {
+      router.push('/siem/demo');
+    } else if (integration.id === 'wazuh' && integration.status === 'configured') {
+      router.push('/siem/wazuh');
+    } else {
+      // For other integrations, show configuration modal or redirect to docs
+      if (integration.documentation && integration.documentation.startsWith('http')) {
+        window.open(integration.documentation, '_blank');
       }
-
-      if (alertsResponse.success) {
-        setAlerts(alertsResponse.data);
-      }
-
-    } catch (error) {
-      console.error('Wazuh data loading error:', error);
-      const apiError = handleAPIError(error);
-      setError(apiError.message);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const syncAlerts = async () => {
-    try {
-      setSyncing(true);
-      setError(null);
-
-      const response = await wazuhAPI.syncAlerts();
-
-      if (response.success) {
-        // Reload data after sync
-        await loadWazuhData();
-      } else {
-        throw new Error(response.error?.message || 'Sync failed');
-      }
-
-    } catch (error) {
-      console.error('Wazuh sync error:', error);
-      const apiError = handleAPIError(error);
-      setError(apiError.message);
-    } finally {
-      setSyncing(false);
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'connected':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'configured':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'available':
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'disconnected':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
-  const createCaseFromAlert = async (alert: WazuhAlert) => {
-    try {
-      const response = await wazuhAPI.createCaseFromAlert(alert.id);
-      
-      if (response.success) {
-        router.push(`/cases/${response.data.caseId}`);
-      } else {
-        throw new Error(response.error?.message || 'Failed to create case');
-      }
-    } catch (error) {
-      console.error('Case creation error:', error);
-      const apiError = handleAPIError(error);
-      setError(apiError.message);
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'connected':
+        return <CheckCircleIcon className="h-4 w-4" />;
+      case 'configured':
+        return <CogIcon className="h-4 w-4" />;
+      case 'available':
+        return <PlayIcon className="h-4 w-4" />;
+      case 'disconnected':
+        return <ExclamationTriangleIcon className="h-4 w-4" />;
+      default:
+        return <ServerIcon className="h-4 w-4" />;
     }
   };
 
-  const getSeverityColor = (level: number) => {
-    if (level >= 12) return 'bg-red-100 text-red-800';
-    if (level >= 7) return 'bg-yellow-100 text-yellow-800';
-    if (level >= 4) return 'bg-blue-100 text-blue-800';
-    return 'bg-gray-100 text-gray-800';
+  const formatLastSync = (lastSync?: string) => {
+    if (!lastSync) return 'Never';
+    return new Date(lastSync).toLocaleDateString();
   };
 
-  const getSeverityLabel = (level: number) => {
-    if (level >= 12) return 'Critical';
-    if (level >= 7) return 'High';
-    if (level >= 4) return 'Medium';
-    return 'Low';
-  };
-
-  const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
-  };
-
-  if (isLoading || loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
@@ -171,245 +247,274 @@ export default function WazuhPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6">
+      <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <ShieldCheckIcon className="h-8 w-8 text-blue-600" />
-              <div>
-                <h1 className="text-2xl font-semibold text-gray-900">Wazuh Integration</h1>
-                <p className="mt-1 text-sm text-gray-600">
-                  Monitor SIEM alerts and manage security events
-                </p>
-              </div>
-            </div>
-            
-            <button
-              onClick={syncAlerts}
-              disabled={syncing}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ArrowPathIcon className={`-ml-1 mr-2 h-5 w-5 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? 'Syncing...' : 'Sync Alerts'}
-            </button>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              SIEM Integration Hub
+            </h1>
+            <p className="text-muted-foreground">
+              Connect and manage various SIEM solutions for comprehensive security monitoring
+            </p>
           </div>
-          
-          {error && (
-            <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-              <p>Error: {error}</p>
-              <button 
-                onClick={() => setError(null)}
-                className="mt-2 text-sm underline hover:no-underline"
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            <ArrowPathIcon className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
         </div>
 
-        {/* Status Cards */}
-        {status && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="card">
-              <div className="card-body">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <div className={`p-2 rounded-lg ${status.connected ? 'bg-green-100' : 'bg-red-100'}`}>
-                      <SignalIcon className={`h-6 w-6 ${status.connected ? 'text-green-600' : 'text-red-600'}`} />
-                    </div>
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Connection Status</p>
-                    <p className={`text-lg font-semibold ${status.connected ? 'text-green-600' : 'text-red-600'}`}>
-                      {status.connected ? 'Connected' : 'Disconnected'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-body">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <div className="p-2 rounded-lg bg-blue-100">
-                      <ServerIcon className="h-6 w-6 text-blue-600" />
-                    </div>
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Active Agents</p>
-                    <p className="text-lg font-semibold text-gray-900">
-                      {status.activeAgents} / {status.totalAgents}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-body">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <div className="p-2 rounded-lg bg-yellow-100">
-                      <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600" />
-                    </div>
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Alerts Today</p>
-                    <p className="text-lg font-semibold text-gray-900">
-                      {status.alertsToday}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-body">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <div className="p-2 rounded-lg bg-green-100">
-                      <ClockIcon className="h-6 w-6 text-green-600" />
-                    </div>
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Last Sync</p>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {formatTimestamp(status.lastSync)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+        {/* Error Message */}
+        {error && (
+          <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg">
+            <p>Error: {error}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setError(null)}
+              className="mt-2"
+            >
+              Dismiss
+            </Button>
           </div>
         )}
 
-        {/* Filters */}
-        <div className="bg-white shadow rounded-lg mb-6">
-          <div className="px-4 py-3 border-b border-gray-200">
-            <h3 className="text-sm font-medium text-gray-700">Filter Alerts</h3>
-          </div>
-          <div className="px-4 py-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <select
-                value={filters.level}
-                onChange={(e) => setFilters(prev => ({ ...prev, level: e.target.value }))}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Severity Levels</option>
-                <option value="12">Critical (12+)</option>
-                <option value="7">High (7-11)</option>
-                <option value="4">Medium (4-6)</option>
-                <option value="1">Low (1-3)</option>
-              </select>
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Integrations</p>
+                  <p className="text-2xl font-bold">{integrations.length}</p>
+                </div>
+                <ServerIcon className="h-8 w-8 text-blue-600" />
+              </div>
+            </CardContent>
+          </Card>
 
-              <input
-                type="text"
-                placeholder="Filter by agent..."
-                value={filters.agent}
-                onChange={(e) => setFilters(prev => ({ ...prev, agent: e.target.value }))}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              />
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Connected</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {integrations.filter(i => i.status === 'connected' || i.status === 'configured').length}
+                  </p>
+                </div>
+                <CheckCircleIcon className="h-8 w-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
 
-              <input
-                type="text"
-                placeholder="Filter by rule..."
-                value={filters.rule}
-                onChange={(e) => setFilters(prev => ({ ...prev, rule: e.target.value }))}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Open Source</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {integrations.filter(i => i.type === 'open-source').length}
+                  </p>
+                </div>
+                <ShieldCheckIcon className="h-8 w-8 text-blue-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Alerts</p>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {integrations.reduce((sum, i) => sum + (i.alertCount || 0), 0)}
+                  </p>
+                </div>
+                <ExclamationTriangleIcon className="h-8 w-8 text-orange-600" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Alerts List */}
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <div className="px-4 py-3 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Recent Alerts</h3>
-          </div>
-          
-          {alerts.length > 0 ? (
-            <ul className="divide-y divide-gray-200">
-              {alerts
-                .filter(alert => {
-                  if (filters.level && alert.rule.level < parseInt(filters.level)) return false;
-                  if (filters.agent && !alert.agent.name.toLowerCase().includes(filters.agent.toLowerCase())) return false;
-                  if (filters.rule && !alert.rule.description.toLowerCase().includes(filters.rule.toLowerCase())) return false;
-                  return true;
-                })
-                .map((alert) => (
-                <li key={alert.id} className="p-4 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSeverityColor(alert.rule.level)}`}>
-                          {getSeverityLabel(alert.rule.level)} ({alert.rule.level})
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          Rule {alert.rule.id}
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          Agent: {alert.agent.name} ({alert.agent.ip})
-                        </span>
-                      </div>
-                      
-                      <p className="text-sm font-medium text-gray-900 mb-1">
-                        {alert.rule.description}
-                      </p>
-                      
-                      <div className="flex items-center space-x-4 text-xs text-gray-500">
-                        <span>Location: {alert.location}</span>
-                        <span>Decoder: {alert.decoder.name}</span>
-                        <span>{formatTimestamp(alert.timestamp)}</span>
-                      </div>
-                      
-                      {alert.rule.groups && alert.rule.groups.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {alert.rule.groups.map((group, index) => (
-                            <span key={index} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                              {group}
-                            </span>
+        {/* Integration Categories */}
+        <div className="space-y-8">
+          {/* Demo & Testing */}
+          <div>
+            <div className="flex items-center space-x-2 mb-4">
+              <PlayIcon className="h-5 w-5 text-green-600" />
+              <h2 className="text-xl font-semibold">Demo & Testing</h2>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {integrations.filter(i => i.type === 'demo').map((integration) => (
+                <Card key={integration.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center space-x-2">
+                        <span>{integration.name}</span>
+                        {integration.status === 'configured' && (
+                          <Badge variant="secondary">
+                            {integration.alertCount} alerts
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      <Badge className={getStatusColor(integration.status)}>
+                        {getStatusIcon(integration.status)}
+                        <span className="ml-1 capitalize">{integration.status}</span>
+                      </Badge>
+                    </div>
+                    <CardDescription>{integration.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">Features:</h4>
+                        <div className="flex flex-wrap gap-1">
+                          {integration.features.map((feature, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {feature}
+                            </Badge>
                           ))}
                         </div>
+                      </div>
+
+                      {(integration.lastSync || integration.version) && (
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          {integration.version && (
+                            <div>
+                              <span className="font-medium">Version:</span>
+                              <p className="text-muted-foreground">{integration.version}</p>
+                            </div>
+                          )}
+                          {integration.lastSync && (
+                            <div>
+                              <span className="font-medium">Last Sync:</span>
+                              <p className="text-muted-foreground">{formatLastSync(integration.lastSync)}</p>
+                            </div>
+                          )}
+                        </div>
                       )}
+
+                      <div className="flex space-x-2 pt-2">
+                        <Button 
+                          onClick={() => handleIntegrationClick(integration)}
+                          className="flex-1"
+                          variant={integration.status === 'available' ? 'default' : 'secondary'}
+                        >
+                          {integration.status === 'available' ? 'Launch Demo' : 'Open'}
+                          <ArrowTopRightOnSquareIcon className="ml-2 h-4 w-4" />
+                        </Button>
+                        
+                        {integration.documentation && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (integration.documentation?.startsWith('http')) {
+                                window.open(integration.documentation, '_blank');
+                              }
+                            }}
+                          >
+                            <DocumentTextIcon className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                    
-                    <div className="flex items-center space-x-2 ml-4">
-                      <button
-                        onClick={() => {
-                          // Toggle full log display - you could implement this
-                          console.log('Full log:', alert.full_log);
-                        }}
-                        className="inline-flex items-center px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        <EyeIcon className="h-3 w-3 mr-1" />
-                        View Log
-                      </button>
-                      
-                      <button
-                        onClick={() => createCaseFromAlert(alert)}
-                        className="inline-flex items-center px-2 py-1 border border-transparent rounded text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        Create Case
-                      </button>
-                    </div>
-                  </div>
-                </li>
+                  </CardContent>
+                </Card>
               ))}
-            </ul>
-          ) : (
-            <div className="text-center py-12">
-              <ShieldCheckIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No alerts found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {status?.connected ? 
-                  'No alerts match your current filters.' : 
-                  'Connect to Wazuh to view alerts.'
-                }
-              </p>
             </div>
-          )}
+          </div>
+
+          {/* Open Source SIEM Solutions */}
+          <div>
+            <div className="flex items-center space-x-2 mb-4">
+              <ShieldCheckIcon className="h-5 w-5 text-blue-600" />
+              <h2 className="text-xl font-semibold">Open Source SIEM Solutions</h2>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {integrations.filter(i => i.type === 'open-source').map((integration) => (
+                <Card key={integration.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center space-x-2">
+                        <span>{integration.name}</span>
+                        {integration.alertCount && (
+                          <Badge variant="secondary">
+                            {integration.alertCount} alerts
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      <Badge className={getStatusColor(integration.status)}>
+                        {getStatusIcon(integration.status)}
+                        <span className="ml-1 capitalize">{integration.status}</span>
+                      </Badge>
+                    </div>
+                    <CardDescription>{integration.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">Features:</h4>
+                        <div className="flex flex-wrap gap-1">
+                          {integration.features.map((feature, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {feature}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+
+                      {(integration.lastSync || integration.version) && (
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          {integration.version && (
+                            <div>
+                              <span className="font-medium">Version:</span>
+                              <p className="text-muted-foreground">{integration.version}</p>
+                            </div>
+                          )}
+                          {integration.lastSync && (
+                            <div>
+                              <span className="font-medium">Last Sync:</span>
+                              <p className="text-muted-foreground">{formatLastSync(integration.lastSync)}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex space-x-2 pt-2">
+                        <Button 
+                          onClick={() => handleIntegrationClick(integration)}
+                          className="flex-1"
+                          variant={integration.status === 'configured' ? 'default' : 'outline'}
+                          disabled={integration.status === 'available'}
+                        >
+                          {integration.status === 'configured' ? 'Manage' : 
+                           integration.status === 'available' ? 'Configure' : 'Setup'}
+                          <ArrowTopRightOnSquareIcon className="ml-2 h-4 w-4" />
+                        </Button>
+                        
+                        {integration.documentation && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (integration.documentation?.startsWith('http')) {
+                                window.open(integration.documentation, '_blank');
+                              }
+                            }}
+                          >
+                            <DocumentTextIcon className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </DashboardLayout>

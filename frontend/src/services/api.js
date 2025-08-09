@@ -347,23 +347,23 @@ export const aiAPI = {
   },
 
   getRemediationSteps: async (caseId) => {
-    const response = await api.post(`/ai/case/${caseId}/remediation`);
+    const response = await api.post(`/ai/gemini/case/${caseId}/remediation`);
     return response.data;
   },
 
   getMitreAnalysis: async (caseId) => {
-    const response = await api.post(`/ai/case/${caseId}/mitre-analysis`);
+    const response = await api.post(`/ai/gemini/case/${caseId}/compliance`);
     return response.data;
   },
 
   getMITREAnalysis: async (caseId) => {
-    const response = await api.post(`/ai/case/${caseId}/mitre-analysis`);
+    const response = await api.post(`/ai/gemini/case/${caseId}/compliance`);
     return response.data;
   },
 
   getExecutiveSummary: async (caseId, options = {}) => {
     const response = await api.post(
-      `/ai/case/${caseId}/executive-summary`,
+      `/ai/gemini/case/${caseId}/executive-summary`,
       options
     );
     return response.data;

@@ -73,6 +73,23 @@ interface IPAnalysisResult {
     isWhitelisted: boolean;
     threatTypes: string[];
   };
+  threatIntelligence: {
+    totalPages: number;
+    categoryBreakdown: Record<string, number>;
+    reporterCountries: Array<{
+      name: string;
+      code: string;
+      count: number;
+    }>;
+    recentReports: Array<{
+      reportedAt: string;
+      comment: string;
+      categories: number[];
+      reporterId: number;
+      reporterCountryCode: string;
+      reporterCountryName: string;
+    }>;
+  };
   recommendations: string[];
   dataSource: {
     geolocation: string;
@@ -525,6 +542,101 @@ export default function IPAnalysisPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Attack Categories Breakdown */}
+            {analysis.threatIntelligence.categoryBreakdown && Object.keys(analysis.threatIntelligence.categoryBreakdown).length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5" />
+                    Attack Categories
+                  </CardTitle>
+                  <CardDescription>
+                    Types of attacks reported for this IP
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {Object.entries(analysis.threatIntelligence.categoryBreakdown)
+                      .sort(([,a], [,b]) => b - a)
+                      .slice(0, 8)
+                      .map(([category, count]) => (
+                        <div key={category} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
+                          <span className="text-sm font-medium">{category}</span>
+                          <Badge variant="destructive">{count} reports</Badge>
+                        </div>
+                      ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Reporter Countries & Recent Reports */}
+            {(analysis.threatIntelligence.reporterCountries.length > 0 || analysis.threatIntelligence.recentReports.length > 0) && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Reporter Countries */}
+                {analysis.threatIntelligence.reporterCountries.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Globe className="h-5 w-5" />
+                        Reporter Countries
+                      </CardTitle>
+                      <CardDescription>
+                        Geographic distribution of abuse reporters
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {analysis.threatIntelligence.reporterCountries.slice(0, 6).map((country, index) => (
+                          <div key={country.code} className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs font-mono bg-muted px-1 rounded">{country.code}</span>
+                              <span className="text-sm font-medium">{country.name}</span>
+                            </div>
+                            <span className="text-sm text-muted-foreground">{country.count} reports</span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Recent Reports */}
+                {analysis.threatIntelligence.recentReports.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Clock className="h-5 w-5" />
+                        Recent Reports
+                      </CardTitle>
+                      <CardDescription>
+                        Latest abuse incidents
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {analysis.threatIntelligence.recentReports.slice(0, 5).map((report, index) => (
+                          <div key={index} className="border-l-2 border-destructive pl-4 py-2">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(report.reportedAt).toLocaleDateString()}
+                              </span>
+                              <span className="text-xs bg-muted px-2 py-1 rounded">
+                                {report.reporterCountryName}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {report.comment?.substring(0, 120)}...
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
 
             {/* Analyst Recommendations */}
             <Card>

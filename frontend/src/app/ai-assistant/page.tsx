@@ -64,15 +64,20 @@ How can I assist you today?`,
 
   const loadCases = async () => {
     try {
+      // Get all cases first, then filter on frontend since backend doesn't support multiple status values
       const response = await casesAPI.getCases({ 
         page: 1, 
-        limit: 50, 
-        sort: '-createdAt',
-        status: 'Open,In Progress' // Only active cases for analysis
+        limit: 100, 
+        sort: '-createdAt'
       });
 
       if (response.success) {
-        setCases(response.data.map((case_: any) => ({
+        // Filter for only active cases (Open and In Progress)
+        const activeCases = response.data.filter((case_: any) => 
+          case_.status === 'Open' || case_.status === 'In Progress'
+        );
+        
+        setCases(activeCases.map((case_: any) => ({
           _id: case_._id,
           caseId: case_.caseId,
           title: case_.title,
@@ -82,6 +87,8 @@ How can I assist you today?`,
       }
     } catch (error) {
       console.error('Error loading cases:', error);
+      const apiError = handleAPIError(error);
+      setError(`Failed to load cases: ${apiError.message}`);
     }
   };
 
@@ -147,34 +154,32 @@ How can I assist you today?`,
         case 'remediation':
           response = await aiAPI.getRemediationSteps(selectedCaseId);
           break;
+          
         case 'mitre':
           response = await aiAPI.getMITREAnalysis(selectedCaseId);
           break;
+          
         case 'executive':
           response = await aiAPI.getExecutiveSummary(selectedCaseId);
           break;
-        default:
-          throw new Error('Invalid analysis type');
       }
 
       if (response.success) {
-        const selectedCase = cases.find(c => c._id === selectedCaseId);
         const analysisMessage: AIMessage = {
           role: 'assistant',
-          content: `## ${type.charAt(0).toUpperCase() + type.slice(1)} Analysis for Case ${selectedCase?.caseId}
-
-${response.data.analysis}`,
+          content: response.data.analysis || response.data.response || response.data.suggestions || response.data.summary,
           timestamp: new Date()
         };
         setMessages(prev => [...prev, analysisMessage]);
         setActiveTab('chat'); // Switch to chat tab to show results
       } else {
-        throw new Error(response.error?.message || 'Analysis failed');
+        throw new Error(response.error?.message || `${type} analysis failed`);
       }
+
     } catch (error) {
       console.error('Analysis error:', error);
       const apiError = handleAPIError(error);
-      setError(apiError.message);
+      setError(`Analysis failed: ${apiError.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -346,7 +351,7 @@ ${response.data.analysis}`,
 
           {/* Main Chat Interface */}
           <div className="lg:col-span-3">
-            <div className="bg-white rounded-lg shadow flex flex-col h-96">
+            <div className="bg-white rounded-lg shadow flex flex-col h-[600px]">
               {/* Messages Area */}
               <div className="flex-1 p-4 overflow-y-auto space-y-4">
                 {messages.map((message, index) => (

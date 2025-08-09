@@ -62,7 +62,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       current: pathname.startsWith("/ai-assistant"),
     },
     {
-      name: "Geo Tracker",
+      name: "IP Analysis",
       href: "/geo",
       icon: MapPin,
       current: pathname.startsWith("/geo"),
@@ -79,10 +79,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   if (user?.role === "admin" || user?.role === "senior_analyst") {
     navigation.push(
       {
-        name: "Wazuh Integration",
+        name: "SIEM Integration",
         href: "/wazuh",
         icon: Monitor,
-        current: pathname.startsWith("/wazuh"),
+        current: pathname.startsWith("/wazuh") || pathname.startsWith("/siem"),
       },
       {
         name: "Users",
