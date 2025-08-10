@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../providers/AuthProvider';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { aiAPI, casesAPI, handleAPIError } from '@/services/api';
 import ReactMarkdown from 'react-markdown';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { useReactToPrint } from 'react-to-print';
 import { 
   ChatBubbleLeftRightIcon,
   SparklesIcon,
@@ -44,6 +43,8 @@ export default function AIAssistantPage() {
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [selectedCaseId, setSelectedCaseId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'chat' | 'analysis'>('chat');
+  const [executiveReportContent, setExecutiveReportContent] = useState<string>('');
+  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -188,6 +189,12 @@ How can I assist you today?`,
           timestamp: new Date()
         };
         setMessages(prev => [...prev, analysisMessage]);
+        
+        // Store executive report content for PDF export
+        if (type === 'executive' && content.includes('# Security Incident Executive Report')) {
+          setExecutiveReportContent(content);
+        }
+        
         setActiveTab('chat'); // Switch to chat tab to show results
       } else {
         throw new Error(response.error?.message || `${type} analysis failed`);
@@ -213,61 +220,10 @@ How can I assist you today?`,
     return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const exportToPDF = async (content: string, caseId: string) => {
-    try {
-      // Create a temporary div with the markdown content
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = content;
-      tempDiv.style.width = '800px';
-      tempDiv.style.padding = '20px';
-      tempDiv.style.backgroundColor = 'white';
-      tempDiv.style.fontFamily = 'Arial, sans-serif';
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.top = '-9999px';
-      tempDiv.style.left = '-9999px';
-      
-      document.body.appendChild(tempDiv);
-      
-      // Convert to canvas
-      const canvas = await html2canvas(tempDiv, {
-        width: 840,
-        height: tempDiv.scrollHeight,
-        scale: 2
-      });
-      
-      // Remove temp div
-      document.body.removeChild(tempDiv);
-      
-      // Create PDF
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 295; // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      
-      const imgData = canvas.toDataURL('image/png');
-      let position = 0;
-      
-      // Add first page
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-      
-      // Add additional pages if needed
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-      
-      // Save PDF
-      pdf.save(`Executive-Report-${caseId}-${new Date().toISOString().split('T')[0]}.pdf`);
-      
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      setError('Failed to generate PDF. Please try again.');
-    }
-  };
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `Executive-Report-${cases.find(c => c._id === selectedCaseId)?.caseId || 'Unknown'}-${new Date().toISOString().split('T')[0]}`,
+  });
 
   if (isLoading) {
     return (
@@ -450,8 +406,8 @@ How can I assist you today?`,
                             <div className="mt-3 pt-2 border-t border-gray-200">
                               <button
                                 onClick={() => {
-                                  const selectedCase = cases.find(c => c._id === selectedCaseId);
-                                  exportToPDF(message.content, selectedCase?.caseId || 'Unknown');
+                                  setExecutiveReportContent(message.content);
+                                  setTimeout(() => handlePrint(), 100); // Small delay to ensure content is set
                                 }}
                                 className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                               >
@@ -509,6 +465,17 @@ How can I assist you today?`,
                   Press Enter to send • Shift+Enter for new line
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Hidden printable component */}
+        <div style={{ display: 'none' }}>
+          <div ref={printRef} className="p-8 max-w-4xl mx-auto bg-white">
+            <div className="prose prose-lg max-w-none">
+              <ReactMarkdown>
+                {executiveReportContent}
+              </ReactMarkdown>
             </div>
           </div>
         </div>
