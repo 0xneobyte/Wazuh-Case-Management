@@ -14,7 +14,7 @@ class GeminiService {
     
     try {
       this.genAI = new GoogleGenerativeAI(this.apiKey);
-      this.model = this.genAI.getGenerativeModel({ model: "gemini-pro" });
+      this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       logger.info('Gemini AI service initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize Gemini AI service:', error);
@@ -46,8 +46,13 @@ class GeminiService {
 
       logger.info(`Generated remediation suggestions for case ${caseData.caseId}`);
       
+      const parsedSuggestions = this.parseRemediationResponse(text);
+      
       return {
-        suggestions: this.parseRemediationResponse(text),
+        suggestions: parsedSuggestions.length > 0 ? parsedSuggestions : [{
+          category: 'AI Analysis',
+          items: [text] // Return raw text if parsing fails
+        }],
         rawResponse: text,
         generatedAt: new Date()
       };
@@ -99,8 +104,15 @@ class GeminiService {
 
       logger.info(`Generated compliance analysis for case ${caseData.caseId}`);
       
+      const parsedAnalysis = this.parseComplianceResponse(text);
+      
       return {
-        analysis: this.parseComplianceResponse(text),
+        analysis: parsedAnalysis.length > 0 ? parsedAnalysis : [{
+          framework: 'Compliance Analysis',
+          status: 'Completed',
+          requirements: [text], // Return raw text if parsing fails
+          recommendations: []
+        }],
         rawResponse: text,
         generatedAt: new Date()
       };
@@ -194,7 +206,9 @@ Format your response with clear headings and bullet points. Be specific and acti
    * Build executive summary prompt
    */
   buildExecutiveSummaryPrompt(caseData) {
-    return `You are writing an executive summary for a security incident case for senior leadership. Keep it concise but comprehensive.
+    return `You are writing a comprehensive executive security report for senior leadership and board members. This document will be shared with non-technical executives who need to understand the business impact of this security incident.
+
+**IMPORTANT**: Format your response as a complete markdown document with proper headings, sections, and professional formatting suitable for PDF export.
 
 **Case Information:**
 - Case ID: ${caseData.caseId}
@@ -214,14 +228,72 @@ ${caseData.wazuhAlert ? `
 - Detection Rule: ${caseData.wazuhAlert.ruleName || 'N/A'}
 ` : ''}
 
-Write a professional executive summary (2-3 paragraphs) that includes:
+Create a complete executive report with this exact structure in markdown format:
 
-1. **What happened**: Brief description of the security incident
-2. **Impact and Risk**: Potential business impact and risk level
-3. **Current Status**: What's been done and next steps
-4. **Timeline**: Key dates and expected resolution
+# Security Incident Executive Report
+**Case ID: ${caseData.caseId}**  
+**Report Date: ${new Date().toLocaleDateString()}**  
+**Classification: ${caseData.severity} Priority**
 
-Use business language appropriate for C-level executives. Focus on business impact rather than technical details.`;
+---
+
+## Executive Summary
+[2-3 paragraphs in business language describing what happened, why it matters, and current status]
+
+## Incident Overview
+### What Happened
+[Clear, non-technical description of the incident]
+
+### When It Occurred
+[Timeline of key events]
+
+### Systems Affected
+[Business systems and services impacted]
+
+## Business Impact Assessment
+### Immediate Impact
+- [List immediate business consequences]
+
+### Potential Risk
+- [List potential risks if not addressed]
+
+### Financial Implications
+- [Estimated costs, potential losses, compliance penalties]
+
+## Current Response Status
+### Actions Taken
+- [List completed response actions]
+
+### Ongoing Activities
+- [Current investigation and remediation efforts]
+
+### Resources Deployed
+- [Teams and resources working on the incident]
+
+## Next Steps & Timeline
+### Immediate (Next 24 Hours)
+- [Priority actions]
+
+### Short-term (Next Week)
+- [Follow-up activities]
+
+### Long-term Recommendations
+- [Strategic improvements to prevent recurrence]
+
+## Recommendations for Leadership
+### Immediate Decisions Needed
+- [Any executive decisions required]
+
+### Budget Considerations
+- [Resource needs and budget implications]
+
+### Communication Strategy
+- [Stakeholder communication recommendations]
+
+---
+*This report is confidential and intended for executive leadership only.*
+
+Use clear, professional language suitable for C-level executives. Avoid technical jargon and focus on business impact, risk, and strategic decisions needed.`;
   }
 
   /**

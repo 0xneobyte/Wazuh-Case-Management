@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../providers/AuthProvider';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { aiAPI, casesAPI, handleAPIError } from '@/services/api';
+import ReactMarkdown from 'react-markdown';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { 
   ChatBubbleLeftRightIcon,
   SparklesIcon,
@@ -12,7 +15,8 @@ import {
   ShieldCheckIcon,
   ClockIcon,
   MagnifyingGlassIcon,
-  PaperAirplaneIcon
+  PaperAirplaneIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 
 interface AIMessage {
@@ -165,9 +169,22 @@ How can I assist you today?`,
       }
 
       if (response.success) {
+        let content = '';
+        
+        // Handle different response formats from Gemini API
+        if (response.data.suggestions && Array.isArray(response.data.suggestions)) {
+          // Format structured suggestions
+          content = response.data.suggestions.map(suggestion => {
+            return `## ${suggestion.category}\n\n${suggestion.items.map(item => `• ${item}`).join('\n')}`;
+          }).join('\n\n');
+        } else {
+          // Fallback to other content formats
+          content = response.data.analysis || response.data.response || response.data.summary || response.data.rawResponse || 'No response received';
+        }
+        
         const analysisMessage: AIMessage = {
           role: 'assistant',
-          content: response.data.analysis || response.data.response || response.data.suggestions || response.data.summary,
+          content,
           timestamp: new Date()
         };
         setMessages(prev => [...prev, analysisMessage]);
@@ -194,6 +211,62 @@ How can I assist you today?`,
 
   const formatTimestamp = (timestamp: Date) => {
     return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const exportToPDF = async (content: string, caseId: string) => {
+    try {
+      // Create a temporary div with the markdown content
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      tempDiv.style.width = '800px';
+      tempDiv.style.padding = '20px';
+      tempDiv.style.backgroundColor = 'white';
+      tempDiv.style.fontFamily = 'Arial, sans-serif';
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.top = '-9999px';
+      tempDiv.style.left = '-9999px';
+      
+      document.body.appendChild(tempDiv);
+      
+      // Convert to canvas
+      const canvas = await html2canvas(tempDiv, {
+        width: 840,
+        height: tempDiv.scrollHeight,
+        scale: 2
+      });
+      
+      // Remove temp div
+      document.body.removeChild(tempDiv);
+      
+      // Create PDF
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 295; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      
+      const imgData = canvas.toDataURL('image/png');
+      let position = 0;
+      
+      // Add first page
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      
+      // Add additional pages if needed
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      // Save PDF
+      pdf.save(`Executive-Report-${caseId}-${new Date().toISOString().split('T')[0]}.pdf`);
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      setError('Failed to generate PDF. Please try again.');
+    }
   };
 
   if (isLoading) {
@@ -366,23 +439,30 @@ How can I assist you today?`,
                           : 'bg-gray-100 text-gray-900'
                       }`}
                     >
-                      {message.role === 'assistant' && message.content.includes('##') ? (
-                        <div className="prose prose-sm max-w-none">
-                          {message.content.split('\n').map((line, lineIndex) => {
-                            if (line.startsWith('##')) {
-                              return <h3 key={lineIndex} className="font-semibold text-gray-900 mb-2">{line.replace('##', '').trim()}</h3>;
-                            }
-                            if (line.startsWith('•')) {
-                              return <li key={lineIndex} className="ml-4">{line.replace('•', '').trim()}</li>;
-                            }
-                            if (line.startsWith('**') && line.endsWith('**')) {
-                              return <p key={lineIndex} className="font-semibold">{line.replace(/\*\*/g, '')}</p>;
-                            }
-                            return line.trim() ? <p key={lineIndex}>{line}</p> : <br key={lineIndex} />;
-                          })}
+                      {message.role === 'assistant' ? (
+                        <div>
+                          <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-800 prose-ul:text-gray-800 prose-li:text-gray-800">
+                            <ReactMarkdown>
+                              {String(message.content || 'No response received')}
+                            </ReactMarkdown>
+                          </div>
+                          {message.content?.includes('# Security Incident Executive Report') && (
+                            <div className="mt-3 pt-2 border-t border-gray-200">
+                              <button
+                                onClick={() => {
+                                  const selectedCase = cases.find(c => c._id === selectedCaseId);
+                                  exportToPDF(message.content, selectedCase?.caseId || 'Unknown');
+                                }}
+                                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <ArrowDownTrayIcon className="h-4 w-4 mr-1.5" />
+                                Export as PDF
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ) : (
-                        <div className="whitespace-pre-wrap">{message.content}</div>
+                        <div className="whitespace-pre-wrap">{message.content || ''}</div>
                       )}
                       <div className={`text-xs mt-1 ${
                         message.role === 'user' ? 'text-blue-100' : 'text-gray-500'

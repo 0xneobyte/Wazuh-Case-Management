@@ -631,9 +631,13 @@ router.post('/gemini/case/:caseId/remediation', [
 
     const suggestions = await geminiService.generateRemediationSuggestions(caseData);
 
-    // Update case with AI suggestions
+    // Update case with AI suggestions - convert to simple string array for database storage
+    const suggestionStrings = suggestions.suggestions?.map(s => 
+      typeof s === 'string' ? s : (s.items ? s.items.join('\n') : s.toString())
+    ) || [suggestions.rawResponse || 'No suggestions generated'];
+    
     await Case.findByIdAndUpdate(req.params.caseId, {
-      'aiAssistant.remediationSuggestions': suggestions.suggestions,
+      'aiAssistant.remediationSuggestions': suggestionStrings,
       'aiAssistant.lastUpdated': suggestions.generatedAt,
       $push: {
         timeline: {
@@ -643,7 +647,7 @@ router.post('/gemini/case/:caseId/remediation', [
           timestamp: new Date(),
           metadata: {
             aiService: 'gemini-remediation',
-            suggestionsCount: suggestions.suggestions?.length || 0
+            suggestionsCount: suggestionStrings.length
           }
         }
       }
