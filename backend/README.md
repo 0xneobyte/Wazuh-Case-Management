@@ -1,23 +1,25 @@
-# Wazuh Case Management System - Backend
+# SENTRYA Backend (Express + MongoDB)
 
-A comprehensive backend API for managing security cases from Wazuh SIEM alerts with AI-powered features, SLA monitoring, and automated notifications.
+A comprehensive backend API for managing security cases from Wazuh SIEM alerts with AI-powered features, SLA monitoring, notifications, and rich analytics.
 
 ## 🚀 Features
 
 ### Core Features
+
 - **JWT Authentication** with role-based access control
 - **Case Management** with full lifecycle tracking
 - **Wazuh SIEM Integration** for alert ingestion and case creation
 - **SLA Monitoring** with automatic escalation
 - **Email Notifications** for assignments, updates, and alerts
 - **Performance Analytics** with user metrics and dashboards
-- **AI Assistant** powered by OpenAI for remediation suggestions
+- **AI Assistant** powered by OpenAI and Gemini for remediation suggestions
 - **MITRE ATT&CK Mapping** and compliance checks
 - **Geo-location Analysis** with risk assessment
 
 ### Advanced Features
+
 - **Real-time SLA Monitoring** with cron jobs
-- **Executive Summary Generation** for non-technical stakeholders  
+- **Executive Summary Generation** for non-technical stakeholders
 - **Similar Case Detection** using AI analysis
 - **Daily Digest Emails** with performance summaries
 - **Comprehensive Audit Trail** with timeline tracking
@@ -35,47 +37,53 @@ A comprehensive backend API for managing security cases from Wazuh SIEM alerts w
 ## 🛠️ Installation
 
 1. **Install Dependencies**
+
    ```bash
    cd backend
    npm install
    ```
 
 2. **Environment Configuration**
+
    ```bash
    cp .env.example .env
    # Edit .env with your configuration
    ```
 
 3. **Required Environment Variables**
+
    ```bash
    # Database
    MONGODB_URI=mongodb://localhost:27017/wazuh-case-management
-   
+
    # JWT Security
    JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-   
-   # Wazuh Integration
-   WAZUH_API_URL=https://your-wazuh-server:55000
-   WAZUH_API_USERNAME=wazuh-wui
-   WAZUH_API_PASSWORD=your-wazuh-password
-   
+
+    # Wazuh Integration
+    WAZUH_API_URL=https://your-wazuh-server:55000
+    WAZUH_USERNAME=wazuh-wui
+    WAZUH_PASSWORD=your-wazuh-password
+
    # Email Service
    SMTP_HOST=smtp.gmail.com
    SMTP_USER=your-email@gmail.com
    SMTP_PASS=your-app-password
-   
-   # AI Features
-   OPENAI_API_KEY=your-openai-api-key
+
+    # AI Features
+    OPENAI_API_KEY=your-openai-api-key
+    GEMINI_API_KEY=your-gemini-api-key
    ```
 
 ## 🚀 Quick Start
 
 1. **Development Mode**
+
    ```bash
    npm run dev
    ```
 
 2. **Production Mode**
+
    ```bash
    npm start
    ```
@@ -85,9 +93,10 @@ A comprehensive backend API for managing security cases from Wazuh SIEM alerts w
    curl http://localhost:5000/health
    ```
 
-## 📚 API Documentation
+## 📚 API Overview
 
 ### Authentication Endpoints
+
 ```
 POST /api/auth/register     - Register new user
 POST /api/auth/login        - User login
@@ -97,6 +106,7 @@ POST /api/auth/logout      - User logout
 ```
 
 ### Case Management
+
 ```
 GET    /api/cases               - Get all cases (with filters)
 POST   /api/cases               - Create new case
@@ -108,6 +118,7 @@ PUT    /api/cases/:id/assign    - Assign case to user
 ```
 
 ### Dashboard Analytics
+
 ```
 GET /api/dashboard/overview     - Dashboard overview stats
 GET /api/dashboard/performance  - Analyst performance metrics
@@ -117,6 +128,7 @@ GET /api/dashboard/workload    - Workload distribution
 ```
 
 ### Wazuh Integration
+
 ```
 GET  /api/wazuh/test                     - Test Wazuh connection
 GET  /api/wazuh/alerts                   - Get Wazuh alerts
@@ -127,6 +139,7 @@ GET  /api/wazuh/stats                    - Integration statistics
 ```
 
 ### AI Assistant
+
 ```
 POST /api/ai/case/:id/remediation        - Get remediation suggestions
 POST /api/ai/case/:id/mitre-analysis     - MITRE ATT&CK analysis
@@ -137,6 +150,7 @@ GET  /api/ai/status                      - AI service status
 ```
 
 ### Notifications
+
 ```
 POST /api/notifications/test-email           - Test email service
 POST /api/notifications/daily-digest        - Send daily digests
@@ -144,20 +158,23 @@ GET  /api/notifications/preferences         - Get notification preferences
 PUT  /api/notifications/preferences         - Update preferences
 ```
 
-## 🔧 Configuration
+## 🔧 Configuration & Defaults
 
 ### User Roles
+
 - **admin**: Full system access
 - **senior_analyst**: Case creation, assignment, advanced features
 - **analyst**: Assigned case management
 - **viewer**: Read-only access
 
-### SLA Time Limits
+### SLA Time Limits (by case priority)
+
 - **P1 (Critical)**: 1 hour
-- **P2 (High)**: 4 hours  
+- **P2 (High)**: 4 hours
 - **P3 (Medium)**: 24 hours
 
 ### Email Notifications
+
 - Case assignments
 - Status updates
 - SLA escalations
@@ -165,6 +182,7 @@ PUT  /api/notifications/preferences         - Update preferences
 - Case closure notifications
 
 ### Cron Jobs
+
 - **SLA Monitoring**: Every 5 minutes
 - **Escalation Check**: Every 15 minutes
 - **Daily Digest**: 8:00 AM daily
@@ -203,7 +221,7 @@ src/
 
 ## 🔒 Security Features
 
-- **JWT Authentication** with refresh tokens
+- **JWT Authentication** (stateless)
 - **Password Hashing** with bcryptjs
 - **Rate Limiting** per IP address
 - **Input Validation** with express-validator
@@ -215,6 +233,7 @@ src/
 ## 📊 Monitoring & Logging
 
 ### Logging Levels
+
 ```bash
 LOG_LEVEL=error    # Errors only
 LOG_LEVEL=warn     # Warnings and errors
@@ -223,11 +242,13 @@ LOG_LEVEL=debug    # All log levels
 ```
 
 ### Log Files
+
 - `logs/error.log` - Error logs only
 - `logs/combined.log` - All logs
 - Console output in development
 
 ### Health Monitoring
+
 - Database connectivity checks
 - Active case monitoring
 - Overdue case alerts
@@ -266,21 +287,24 @@ CMD ["npm", "start"]
 ### Common Issues
 
 1. **MongoDB Connection Failed**
+
    ```bash
    # Check MongoDB is running
    sudo systemctl status mongod
-   
+
    # Verify connection string
    echo $MONGODB_URI
    ```
 
 2. **Wazuh API Connection Failed**
+
    ```bash
    # Test Wazuh API
    curl -k -u wazuh-wui:password https://localhost:55000/security/user/authenticate
    ```
 
 3. **Email Service Not Working**
+
    ```bash
    # Test SMTP configuration
    POST /api/notifications/test-email
@@ -293,6 +317,7 @@ CMD ["npm", "start"]
    ```
 
 ### Performance Optimization
+
 - Enable MongoDB indexing
 - Configure connection pooling
 - Use Redis for caching (optional)
@@ -302,13 +327,15 @@ CMD ["npm", "start"]
 ## 📝 Development
 
 ### Code Structure
+
 - Use ES6+ features
-- Follow RESTful API conventions  
+- Follow RESTful API conventions
 - Implement proper error handling
 - Add comprehensive logging
 - Write meaningful commit messages
 
 ### Adding New Features
+
 1. Create route handlers in appropriate files
 2. Add data models if needed
 3. Implement middleware if required
@@ -331,6 +358,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🆘 Support
 
 For support and questions:
+
 - Create an issue in the repository
 - Check the troubleshooting section
 - Review API documentation
