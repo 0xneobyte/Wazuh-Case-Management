@@ -233,32 +233,6 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <Separator className="my-6" />
-
-            {/* Demo credentials */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-medium text-center">
-                Demo Credentials
-              </h4>
-              <div className="space-y-2 text-xs">
-                <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
-                  <p className="font-medium text-blue-800">Admin</p>
-                  <p className="text-blue-700">admin@example.com / admin123</p>
-                </div>
-                <div className="p-3 rounded-lg bg-green-50 border border-green-200">
-                  <p className="font-medium text-green-800">Analyst</p>
-                  <p className="text-green-700">
-                    analyst@example.com / password123
-                  </p>
-                </div>
-                <div className="p-3 rounded-lg bg-purple-50 border border-purple-200">
-                  <p className="font-medium text-purple-800">Senior Analyst</p>
-                  <p className="text-purple-700">
-                    senior@example.com / password123
-                  </p>
-                </div>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
